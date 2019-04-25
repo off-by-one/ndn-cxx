@@ -165,9 +165,17 @@ Interest::encode03(EncodingImpl<TAG>& encoder) const
   //                Nonce?
   //                InterestLifetime?
   //                HopLimit?
-  //                ApplicationParameters?
+  //                (ApplicationParameters |
+  //                 ApplicationParameters InterestSignatureInfo InterestSignatureValue)?
+
 
   // (reverse encoding)
+
+  // ApplicationParameters
+  if (hasSignature()) {
+    totalLength += encoder.prependBlock(m_signature->getValue());
+    totalLength += encoder.prependBlock(m_signature->getInfo());
+  }
 
   // ApplicationParameters
   if (hasApplicationParameters()) {
@@ -638,6 +646,22 @@ Interest::unsetApplicationParameters()
 {
   m_parameters = {};
   m_wire.reset();
+  return *this;
+}
+
+Interest&
+Interest::setSignature(const Signature& signature)
+{
+  m_wire.reset();
+  m_signature = signature;
+  return *this;
+}
+
+Interest&
+Interest::setSignatureValue(const Block& value)
+{
+  m_wire.reset();
+  m_signature->setValue(value);
   return *this;
 }
 
