@@ -74,6 +74,8 @@ enum {
   InterestLifetime                = 12,
   HopLimit                        = 34,
   ApplicationParameters           = 36,
+  InterestSignatureInfo           = 44,
+  InterestSignatureValue          = 46,
   MetaInfo                        = 20,
   Content                         = 21,
   SignatureInfo                   = 22,

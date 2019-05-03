@@ -324,7 +324,8 @@ Interest::decode03()
   //                Nonce?
   //                InterestLifetime?
   //                HopLimit?
-  //                ApplicationParameters?
+  //                (ApplicationParameters |
+  //                 ApplicationParameters InterestSignatureInfo InterestSignatureValue)?
 
   auto element = m_wire.elements_begin();
   if (element == m_wire.elements_end() || element->type() != tlv::Name) {
@@ -412,6 +413,31 @@ Interest::decode03()
         }
         m_parameters = *element;
         lastElement = 8;
+        break;
+      }
+      case tlv::InterestSignatureInfo: {
+        if (lastElement >= 9) {
+          break; // InterestSignatureInfo is non-critical, ignore out-of-order appearance
+        }
+        if (!hasApplicationParameters()) {
+          NDN_THROW(Error("InterestSignatureInfo must be preceeded by Application Parameters"));
+        }
+        if (!hasSignature()) {
+            m_signature = Signature();
+        }
+        m_signature->setInfo(*element);
+        lastElement = 9;
+        break;
+      }
+      case tlv::InterestSignatureValue: {
+        if (lastElement >= 10) {
+          break; // InterestSignatureValue is non-critical, ignore out-of-order appearance
+        }
+        if (!hasSignature()) {
+          NDN_THROW(Error("InterestSignatureValue must be preceeded by InterestSignatureInfo"));
+        }
+        m_signature->setValue(*element);
+        lastElement = 10;
         break;
       }
       default: {
