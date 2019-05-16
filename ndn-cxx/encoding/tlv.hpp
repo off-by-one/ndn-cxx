@@ -87,6 +87,9 @@ enum : uint32_t {
   SignatureType                   = 27,
   KeyLocator                      = 28,
   KeyDigest                       = 29,
+  SignatureNonce                  = 38,
+  SignatureTime                   = 40,
+  SignatureSeqNum                 = 42,
   LinkDelegation                  = 31,
   LinkPreference                  = 30,
 
