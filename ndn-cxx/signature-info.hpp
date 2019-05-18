@@ -144,10 +144,35 @@ public: // field access
   void
   appendTypeSpecificTlv(const Block& element);
 
+  /** @brief Check if this is an Interest signature
+   */
+  bool
+  isInterestSignature() const
+  {
+    return m_isInterestSignature;
+  }
+
+  /** @brief Mark this as an Interest Signature
+   */
+  void
+  setInterestSignature()
+  {
+    m_isInterestSignature = true;
+  }
+
+  /** @brief Unmark this as an Interest Signature
+   */
+  void
+  unsetInterestSignature()
+  {
+    m_isInterestSignature = false;
+  }
+
 private:
   int32_t m_type;
   bool m_hasKeyLocator;
   KeyLocator m_keyLocator;
+  bool m_isInterestSignature;
   std::list<Block> m_otherTlvs;
 
   mutable Block m_wire;
