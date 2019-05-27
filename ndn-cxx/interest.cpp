@@ -771,6 +771,11 @@ operator<<(std::ostream& os, const Interest& interest)
     os << delim << "ndn.Exclude=" << interest.getExclude();
     delim = '&';
   }
+  if (interest.hasSignature()) {
+    os << delim << "ndn." << interest.getSignature().getType()
+       << "=" << interest.getSignature().getValue();
+    delim = '&';
+  }
 
   return os;
 }
