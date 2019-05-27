@@ -141,7 +141,7 @@ SignatureInfo::wireDecode(const Block& wire)
     NDN_THROW(Error("SignatureInfo", m_wire.type()));
   }
   else if (m_wire.type() == tlv::InterestSignatureInfo) {
-    setInterestSignature();
+    setIsInterestSignature();
   }
 
   auto it = m_wire.elements_begin();

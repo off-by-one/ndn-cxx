@@ -426,6 +426,24 @@ public: // modifiers
     return append(Component::fromImplicitSha256Digest(digest, digestSize));
   }
 
+  /** @brief Append a ParametersSha256Digest component
+   *  @return a reference to this name, to allow chaining
+   */
+  Name&
+  appendParametersSha256Digest(ConstBufferPtr digest)
+  {
+    return append(Component::fromParametersSha256Digest(std::move(digest)));
+  }
+
+  /** @brief Append a ParametersSha256Digest component
+   *  @return a reference to this name, to allow chaining
+   */
+  Name&
+  appendParametersSha256Digest(const uint8_t* digest, size_t digestSize)
+  {
+    return append(Component::fromParametersSha256Digest(digest, digestSize));
+  }
+
   /** @brief Append a PartialName
    *  @param name the components to append
    *  @return a reference to this name, to allow chaining

@@ -146,6 +146,26 @@ public: // SignatureInfo fields
     m_info.unsetKeyLocator();
   }
 
+  /** @brief Mark this as an Interest Signature
+   *  @return reference to this Interest
+   */
+  Signature&
+  setIsInterestSignature()
+  {
+    m_info.setIsInterestSignature();
+    return *this;
+  }
+
+  /** @brief Unmark this as an Interest Signature
+   *  @return reference to this Interest
+   */
+  Signature&
+  unsetIsInterestSignature()
+  {
+    m_info.unsetIsInterestSignature();
+    return *this;
+  }
+
 protected:
   SignatureInfo m_info;
   mutable Block m_value;

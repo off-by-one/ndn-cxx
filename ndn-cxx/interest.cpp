@@ -106,6 +106,18 @@ Interest::wireEncode(EncodingImpl<TAG>& encoder) const
   }
 }
 
+size_t
+Interest::wireEncodeUnsignedOnly(EncodingBuffer& encoder) const
+{
+  return encode03(encoder, true, false);
+}
+
+size_t
+Interest::wireEncodeParametersOnly(EncodingBuffer& encoder) const
+{
+  return encode03(encoder, false, true);
+}
+
 template<encoding::Tag TAG>
 size_t
 Interest::encode02(EncodingImpl<TAG>& encoder) const
@@ -152,7 +164,7 @@ Interest::encode02(EncodingImpl<TAG>& encoder) const
 
 template<encoding::Tag TAG>
 size_t
-Interest::encode03(EncodingImpl<TAG>& encoder) const
+Interest::encode03(EncodingImpl<TAG>& encoder, bool unsignedOnly, bool parametersOnly) const
 {
   size_t totalLength = 0;
 
@@ -171,15 +183,26 @@ Interest::encode03(EncodingImpl<TAG>& encoder) const
 
   // (reverse encoding)
 
-  // ApplicationParameters
-  if (hasSignature()) {
+  // SignatureValue
+  if (!unsignedOnly) {
+    if (!hasSignature()) {
+      NDN_THROW(Error("Requested wire format, but Interest has not been signed"));
+    }
     totalLength += encoder.prependBlock(m_signature->getValue());
+  }
+
+  // SignatureInfo
+  if (hasSignature()) {
     totalLength += encoder.prependBlock(m_signature->getInfo());
   }
 
   // ApplicationParameters
   if (hasApplicationParameters()) {
     totalLength += encoder.prependBlock(getApplicationParameters());
+  }
+
+  if (parametersOnly) {
+    return totalLength;
   }
 
   // HopLimit: not yet supported
@@ -679,6 +702,11 @@ Interest&
 Interest::setSignature(const Signature& signature)
 {
   m_wire.reset();
+
+  if (m_parameters.empty()) {
+    m_parameters = Block(tlv::ApplicationParameters);
+  }
+
   m_signature = signature;
   return *this;
 }

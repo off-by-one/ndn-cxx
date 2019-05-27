@@ -155,7 +155,7 @@ public: // field access
   /** @brief Mark this as an Interest Signature
    */
   void
-  setInterestSignature()
+  setIsInterestSignature()
   {
     m_isInterestSignature = true;
   }
@@ -163,7 +163,7 @@ public: // field access
   /** @brief Unmark this as an Interest Signature
    */
   void
-  unsetInterestSignature()
+  unsetIsInterestSignature()
   {
     m_isInterestSignature = false;
   }

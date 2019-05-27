@@ -80,6 +80,12 @@ public:
   const Block&
   wireEncode() const;
 
+  size_t
+  wireEncodeUnsignedOnly(EncodingBuffer& encoder) const;
+
+  size_t
+  wireEncodeParametersOnly(EncodingBuffer& encoder) const;
+
   /** @brief Decode from @p wire in NDN Packet Format v0.2 or v0.3.
    */
   void
@@ -336,6 +342,7 @@ public: // element access
   Interest&
   unsetApplicationParameters();
 
+public: // signature utilites
   /** @brief Get Signature
    */
   const Signature&
@@ -481,7 +488,7 @@ private:
    */
   template<encoding::Tag TAG>
   size_t
-  encode03(EncodingImpl<TAG>& encoder) const;
+  encode03(EncodingImpl<TAG>& encoder, bool unsignedOnly = false, bool parametersOnly = false) const;
 
   /** @brief Decode @c m_wire as NDN Packet Format v0.2.
    *  @retval true decoding successful.

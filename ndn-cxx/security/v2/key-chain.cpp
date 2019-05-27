@@ -450,15 +450,26 @@ KeyChain::sign(Interest& interest, const SigningInfo& params)
   SignatureInfo sigInfo;
   std::tie(keyName, sigInfo) = prepareSignatureInfo(params);
 
-  Name signedName = interest.getName();
-  signedName.append(sigInfo.wireEncode()); // signatureInfo
+  Name newName;
 
-  Block sigValue = sign(signedName.wireEncode().value(), signedName.wireEncode().value_size(),
-                        keyName, params.getDigestAlgorithm());
+  for (auto& c: interest.getName()) {
+    if (!c.isParametersSha256Digest()) {
+      newName.append(c);
+    }
+  }
 
-  sigValue.encode();
-  signedName.append(sigValue); // signatureValue
-  interest.setName(signedName);
+  interest.setName(newName)
+          .setSignature(Signature(sigInfo).setIsInterestSignature());
+
+  EncodingBuffer packet;
+  interest.wireEncodeUnsignedOnly(packet);
+  Block sigValue = sign(packet.buf(), packet.size(), keyName, params.getDigestAlgorithm());
+  interest.setSignatureValue(sigValue);
+
+  EncodingBuffer parameters;
+  interest.wireEncodeParametersOnly(parameters);
+  newName.appendParametersSha256Digest(util::Sha256::computeDigest(parameters.buf(), parameters.size()));
+  interest.setName(newName);
 }
 
 Block
