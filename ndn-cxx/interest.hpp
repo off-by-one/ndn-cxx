@@ -342,7 +342,10 @@ public: // element access
   Interest&
   unsetApplicationParameters();
 
+<<<<<<< HEAD
 public: // signature utilites
+=======
+>>>>>>> cbb6e8a4cba6cc8d1647b7f75a88512d54330d06
   /** @brief Get Signature
    */
   const Signature&

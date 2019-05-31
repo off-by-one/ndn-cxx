@@ -197,6 +197,12 @@ Interest::encode03(EncodingImpl<TAG>& encoder, bool unsignedOnly, bool parameter
   }
 
   // ApplicationParameters
+  if (hasSignature()) {
+    totalLength += encoder.prependBlock(m_signature->getValue());
+    totalLength += encoder.prependBlock(m_signature->getInfo());
+  }
+
+  // ApplicationParameters
   if (hasApplicationParameters()) {
     totalLength += encoder.prependBlock(getApplicationParameters());
   }
