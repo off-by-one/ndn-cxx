@@ -34,7 +34,8 @@ namespace ndn {
  *  SignatureSha256WithRsa , or @p SignatureSha256WithEcdsa instead of using @p Signature type
  *  directly.
  */
-class Signature
+template<class InfoType>
+class SignatureProto
 {
 public:
   class Error : public tlv::Error
@@ -43,13 +44,13 @@ public:
     using tlv::Error::Error;
   };
 
-  Signature() = default;
+  SignatureProto() = default;
 
   explicit
-  Signature(const Block& info, const Block& value = Block());
+  SignatureProto(const Block& info, const Block& value = Block());
 
   explicit
-  Signature(const SignatureInfo& info, const Block& value = Block());
+  SignatureProto(const InfoType& info, const Block& value = Block());
 
   /** @brief Determine whether SignatureInfo is valid
    */
@@ -59,9 +60,9 @@ public:
     return m_info.getSignatureType() != -1;
   }
 
-  /** @brief Get SignatureInfo
+  /** @brief Get InfoType
    */
-  const SignatureInfo&
+  const InfoType&
   getSignatureInfo() const
   {
     return m_info;
@@ -81,10 +82,10 @@ public:
   void
   setInfo(const Block& info);
 
-  /** @brief Set SignatureInfo
+  /** @brief Set SignatureInfo 
    */
   void
-  setInfo(const SignatureInfo& info)
+  setInfo(const InfoType& info)
   {
     m_info = info;
   }
@@ -110,7 +111,7 @@ public: // SignatureInfo fields
   tlv::SignatureTypeValue
   getType() const;
 
-  /** @brief Check if KeyLocator exists in SignatureInfo
+  /** @brief Check if KeyLocator exists in SignatureInfo 
    */
   bool
   hasKeyLocator() const
@@ -119,7 +120,7 @@ public: // SignatureInfo fields
   }
 
   /** @brief Get KeyLocator
-   *  @throw tlv::Error KeyLocator does not exist in SignatureInfo
+   *  @throw tlv::Error KeyLocator does not exist in SignatureInfo 
    */
   const KeyLocator&
   getKeyLocator() const
@@ -147,54 +148,12 @@ public: // SignatureInfo fields
   }
 
 protected:
-  SignatureInfo m_info;
+  InfoType m_info;
   mutable Block m_value;
 };
 
-/** @brief Holds InterestSignatureInfo and InterestSignatureValue in a Data packet
- *
- *  A InterestSignature is not a TLV element itself. It collects
- *  InterestSignatureInfo and InterestSignatureValue TLV elements together for
- *  easy access.
- *  In most cases, an application should use a subclass of Signature such as @p DigestSha256 , @p
- *  SignatureSha256WithRsa , or @p SignatureSha256WithEcdsa instead of using @p Signature type
- *  directly.
- */
-class InterestSignature : public Signature
-{
-public:
-  InterestSignature() = default;
-
-  explicit
-  InterestSignature(const Block& info, const Block& value = Block());
-
-  explicit
-  InterestSignature(const InterestSignatureInfo& info, const Block& value = Block());
-
-  /** @brief Get SignatureInfo
-   */
-  const InterestSignatureInfo&
-  getSignatureInfo() const
-  {
-    return m_info;
-  }
-
-  /** @brief Decode SignatureInfo from wire format
-   *  @throw tlv::Error decode error
-   */
-  void
-  setInfo(const Block& info);
-
-  /** @brief Set SignatureValue
-   *  @throws tlv::Error TLV-TYPE of supplied block is not SignatureValue, or the block does not have TLV-VALUE
-   */
-  void
-  setValue(const Block& value);
-
-protected:
-  InterestSignatureInfo m_info;
-  mutable Block m_value;
-};
+using Signature = SignatureProto<SignatureInfo>;
+using InterestSignature = SignatureProto<InterestSignatureInfo>;
 
 bool
 operator==(const Signature& lhs, const Signature& rhs);

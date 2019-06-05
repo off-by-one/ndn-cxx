@@ -23,19 +23,20 @@
 
 namespace ndn {
 
-BOOST_CONCEPT_ASSERT((boost::EqualityComparable<Signature>));
-static_assert(std::is_base_of<tlv::Error, Signature::Error>::value,
-              "Signature::Error must inherit from tlv::Error");
+BOOST_CONCEPT_ASSERT((boost::EqualityComparable<InterestSignature>));
+static_assert(std::is_base_of<tlv::Error, InterestSignature::Error>::value,
+              "InterestSignature::Error must inherit from tlv::Error");
 
 template<>
-Signature::SignatureProto(const Block& info, const Block& value)
+InterestSignature::SignatureProto(const Block& info, const Block& value)
   : m_info(info)
   , m_value(value)
 {
 }
 
+
 template<>
-Signature::SignatureProto(const SignatureInfo& info, const Block& value)
+InterestSignature::SignatureProto(const InterestSignatureInfo& info, const Block& value)
   : m_info(info)
   , m_value(value)
 {
@@ -43,34 +44,33 @@ Signature::SignatureProto(const SignatureInfo& info, const Block& value)
 
 template<>
 tlv::SignatureTypeValue
-Signature::getType() const
+InterestSignature::getType() const
 {
   if (!*this) {
-    NDN_THROW(Error("Signature is invalid"));
+    NDN_THROW(Error("InterestSignature is invalid"));
   }
   return static_cast<tlv::SignatureTypeValue>(m_info.getSignatureType());
 }
 
 template<>
 void
-Signature::setInfo(const Block& info)
+InterestSignature::setInfo(const Block& info)
 {
-  m_info = SignatureInfo(info);
+  m_info = InterestSignatureInfo(info);
 }
 
 template<>
 void
-Signature::setValue(const Block& value)
+InterestSignature::setValue(const Block& value)
 {
-  if (value.type() != tlv::SignatureValue &&
-          value.type() != tlv::InterestSignatureValue) {
-    NDN_THROW(Error("SignatureValue", value.type()));
+  if (value.type() != tlv::InterestSignatureValue) {
+    NDN_THROW(Error("InterestSignatureValue", value.type()));
   }
   m_value = value;
 }
 
 bool
-operator==(const Signature& lhs, const Signature& rhs)
+operator==(const InterestSignature& lhs, const InterestSignature& rhs)
 {
   return lhs.getSignatureInfo() == rhs.getSignatureInfo() && lhs.getValue() == rhs.getValue();
 }

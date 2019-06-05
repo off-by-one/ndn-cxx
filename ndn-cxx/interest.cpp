@@ -452,7 +452,7 @@ Interest::decode03()
           NDN_THROW(Error("InterestSignatureInfo must be preceeded by Application Parameters"));
         }
         if (!hasSignature()) {
-            m_signature = Signature();
+          m_signature = InterestSignature();
         }
         m_signature->setInfo(*element);
         lastElement = 9;
@@ -705,7 +705,7 @@ Interest::unsetApplicationParameters()
 }
 
 Interest&
-Interest::setSignature(const Signature& signature)
+Interest::setSignature(const InterestSignature& signature)
 {
   m_wire.reset();
 

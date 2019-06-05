@@ -162,12 +162,21 @@ protected:
 class InterestSignatureInfo : public SignatureInfo
 {
 public:
+  /** @brief Create an invalid Interest 
+   */
+  InterestSignatureInfo();
+
   /** @brief Create from wire encoding
    *  @throw tlv::Error decode error
    *
    */
   explicit
   InterestSignatureInfo(const Block& wire);
+
+  /** @brief Create from data signature
+   */
+  explicit
+  InterestSignatureInfo(const SignatureInfo& info);
 
   /** @brief Fast encoding or block size estimation
    *  @param encoder EncodingEstimator or EncodingBuffer instance

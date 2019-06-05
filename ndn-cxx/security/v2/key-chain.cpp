@@ -447,8 +447,10 @@ void
 KeyChain::sign(Interest& interest, const SigningInfo& params)
 {
   Name keyName;
-  SignatureInfo sigInfo;
-  std::tie(keyName, sigInfo) = prepareSignatureInfo(params);
+  SignatureInfo sigInfoPartial;
+  std::tie(keyName, sigInfoPartial) = prepareSignatureInfo(params);
+
+  InterestSignatureInfo sigInfo(sigInfoPartial);
 
   Name newName;
 
@@ -459,7 +461,7 @@ KeyChain::sign(Interest& interest, const SigningInfo& params)
   }
 
   interest.setName(newName)
-          .setSignature(Signature(sigInfo));
+          .setSignature(InterestSignature(sigInfo));
 
   EncodingBuffer packet;
   interest.wireEncodeUnsignedOnly(packet);

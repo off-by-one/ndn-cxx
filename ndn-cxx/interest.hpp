@@ -345,7 +345,7 @@ public: // element access
 public: // signature utilites
   /** @brief Get Signature
    */
-  const Signature&
+  const InterestSignature&
   getSignature() const
   {
     return *m_signature;
@@ -355,7 +355,7 @@ public: // signature utilites
    *  @return a reference to this Interest, to allow chaining
    */
   Interest&
-  setSignature(const Signature& signature);
+  setSignature(const InterestSignature& signature);
 
   /** @brief Set SignatureValue
    *  @return a reference to this Interest, to allow chaining
@@ -521,7 +521,7 @@ private:
   time::milliseconds m_interestLifetime;
   DelegationList m_forwardingHint;
   Block m_parameters; // NDN Packet Format v0.3 only
-  optional<Signature> m_signature;
+  optional<InterestSignature> m_signature;
 
   mutable Block m_wire;
 

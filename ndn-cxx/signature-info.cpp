@@ -63,9 +63,19 @@ SignatureInfo::SignatureInfo(const Block& block)
   wireDecode(block);
 }
 
+InterestSignatureInfo::InterestSignatureInfo()
+  : SignatureInfo()
+{
+}
+
 InterestSignatureInfo::InterestSignatureInfo(const Block& block)
 {
   wireDecode(block);
+}
+
+InterestSignatureInfo::InterestSignatureInfo(const SignatureInfo& info)
+: SignatureInfo(info)
+{
 }
 
 template<encoding::Tag TAG>
