@@ -32,17 +32,22 @@ BOOST_CONCEPT_ASSERT((WireDecodable<SignatureInfo>));
 static_assert(std::is_base_of<tlv::Error, SignatureInfo::Error>::value,
               "SignatureInfo::Error must inherit from tlv::Error");
 
+BOOST_CONCEPT_ASSERT((boost::EqualityComparable<InterestSignatureInfo>));
+BOOST_CONCEPT_ASSERT((WireEncodable<InterestSignatureInfo>));
+BOOST_CONCEPT_ASSERT((WireEncodableWithEncodingBuffer<InterestSignatureInfo>));
+BOOST_CONCEPT_ASSERT((WireDecodable<InterestSignatureInfo>));
+static_assert(std::is_base_of<tlv::Error, InterestSignatureInfo::Error>::value,
+              "InterestSignatureInfo::Error must inherit from tlv::Error");
+
 SignatureInfo::SignatureInfo()
   : m_type(-1)
   , m_hasKeyLocator(false)
-  , m_isInterestSignature(false)
 {
 }
 
 SignatureInfo::SignatureInfo(tlv::SignatureTypeValue type)
   : m_type(type)
   , m_hasKeyLocator(false)
-  , m_isInterestSignature(false)
 {
 }
 
@@ -50,11 +55,15 @@ SignatureInfo::SignatureInfo(tlv::SignatureTypeValue type, const KeyLocator& key
   : m_type(type)
   , m_hasKeyLocator(true)
   , m_keyLocator(keyLocator)
-  , m_isInterestSignature(false)
 {
 }
 
 SignatureInfo::SignatureInfo(const Block& block)
+{
+  wireDecode(block);
+}
+
+InterestSignatureInfo::InterestSignatureInfo(const Block& block)
 {
   wireDecode(block);
 }
@@ -67,24 +76,11 @@ SignatureInfo::wireEncode(EncodingImpl<TAG>& encoder) const
     NDN_THROW(Error("Cannot encode invalid SignatureInfo"));
   }
 
-  // IF m_isInterestSignature not set
-
   // SignatureInfo ::= SIGNATURE-INFO-TLV TLV-LENGTH
   //                     SignatureType
   //                     KeyLocator?
   //                     ValidityPeriod? (if present, stored as first item of m_otherTlvs)
   //                     other SignatureType-specific sub-elements*
-
-  // IF m_isInterestSignature set
-
-  // InterestSignatureInfo ::=
-  //        INTEREST-SIGNATURE-INFO-TLV TLV-LENGTH
-  //          SignatureType
-  //          KeyLocator?
-  //          SignatureNonce?  (if present, stored as first item of m_otherTlvs)
-  //          SignatureTime?   (stored in m_otherTlvs)
-  //          SignatureSeqNum? (stored in m_otherTlvs)
-  //          other SignatureType-specific sub-elements*
 
   size_t totalLength = 0;
 
@@ -98,13 +94,7 @@ SignatureInfo::wireEncode(EncodingImpl<TAG>& encoder) const
   totalLength += prependNonNegativeIntegerBlock(encoder, tlv::SignatureType,
                                                 static_cast<uint64_t>(m_type));
   totalLength += encoder.prependVarNumber(totalLength);
-
-  if (m_isInterestSignature) {
-      totalLength += encoder.prependVarNumber(tlv::InterestSignatureInfo);
-  }
-  else {
-      totalLength += encoder.prependVarNumber(tlv::SignatureInfo);
-  }
+  totalLength += encoder.prependVarNumber(tlv::SignatureInfo);
 
   return totalLength;
 }
@@ -140,15 +130,126 @@ SignatureInfo::wireDecode(const Block& wire)
   if (m_wire.type() != tlv::SignatureInfo && m_wire.type() != tlv::InterestSignatureInfo) {
     NDN_THROW(Error("SignatureInfo", m_wire.type()));
   }
-  else if (m_wire.type() == tlv::InterestSignatureInfo) {
-    setIsInterestSignature();
-  }
 
   auto it = m_wire.elements_begin();
 
   // the first sub-element must be SignatureType
   if (it == m_wire.elements_end() || it->type() != tlv::SignatureType)
     NDN_THROW(Error("Missing SignatureType in SignatureInfo"));
+
+  m_type = readNonNegativeIntegerAs<tlv::SignatureTypeValue>(*it);
+  ++it;
+
+  // the second sub-element could be KeyLocator
+  if (it != m_wire.elements_end() && it->type() == tlv::KeyLocator) {
+    m_keyLocator.wireDecode(*it);
+    m_hasKeyLocator = true;
+    ++it;
+  }
+
+  // store SignatureType-specific sub-elements, if any
+  while (it != m_wire.elements_end()) {
+    m_otherTlvs.push_back(*it);
+    ++it;
+  }
+}
+
+template<encoding::Tag TAG>
+size_t
+InterestSignatureInfo::wireEncode(EncodingImpl<TAG>& encoder) const
+{
+  if (m_type == -1) {
+    NDN_THROW(Error("Cannot encode invalid InterestSignatureInfo"));
+  }
+
+  // InterestSignatureInfo ::=
+  //        INTEREST-SIGNATURE-INFO-TLV TLV-LENGTH
+  //          SignatureType
+  //          KeyLocator?
+  //          SignatureNonce?
+  //          SignatureTime?
+  //          SignatureSeqNum?
+  //          other SignatureType-specific sub-elements*
+
+  size_t totalLength = 0;
+
+  for (auto i = m_otherTlvs.rbegin(); i != m_otherTlvs.rend(); i++) {
+    totalLength += encoder.prependBlock(*i);
+  }
+
+  if (m_seqNum.has_value()) {
+    uint32_t seqNum = *m_seqNum;
+    totalLength += encoder.prependByteArrayBlock(
+      tlv::SignatureSeqNum,
+      reinterpret_cast<uint8_t*>(&seqNum),
+      sizeof(seqNum));
+  }
+
+  if (m_time.has_value()) {
+    uint32_t time = *m_time;
+    totalLength += encoder.prependByteArrayBlock(
+      tlv::SignatureTime,
+      reinterpret_cast<uint8_t*>(&time),
+      sizeof(time));
+  }
+
+  if (m_nonce.has_value()) {
+    uint32_t nonce = *m_nonce;
+    totalLength += encoder.prependByteArrayBlock(
+      tlv::SignatureNonce,
+      reinterpret_cast<uint8_t*>(&nonce),
+      sizeof(nonce));
+  }
+    
+  if (m_hasKeyLocator)
+    totalLength += m_keyLocator.wireEncode(encoder);
+
+  totalLength += prependNonNegativeIntegerBlock(encoder, tlv::SignatureType,
+                                                static_cast<uint64_t>(m_type));
+  totalLength += encoder.prependVarNumber(totalLength);
+
+  totalLength += encoder.prependVarNumber(tlv::InterestSignatureInfo);
+
+  return totalLength;
+}
+
+NDN_CXX_DEFINE_WIRE_ENCODE_INSTANTIATIONS(InterestSignatureInfo);
+
+const Block&
+InterestSignatureInfo::wireEncode() const
+{
+  if (m_wire.hasWire())
+    return m_wire;
+
+  EncodingEstimator estimator;
+  size_t estimatedSize = wireEncode(estimator);
+
+  EncodingBuffer buffer(estimatedSize, 0);
+  wireEncode(buffer);
+
+  m_wire = buffer.block();
+  return m_wire;
+}
+
+void
+InterestSignatureInfo::wireDecode(const Block& wire)
+{
+  m_type = -1;
+  m_hasKeyLocator = false;
+  m_otherTlvs.clear();
+
+  m_wire = wire;
+  m_wire.parse();
+
+  if (m_wire.type() != tlv::InterestSignatureInfo) {
+    NDN_THROW(Error("InterestSignatureInfo", m_wire.type()));
+  }
+
+  auto it = m_wire.elements_begin();
+
+  // the first sub-element must be SignatureType
+  if (it == m_wire.elements_end() || it->type() != tlv::SignatureType)
+    NDN_THROW(Error("Missing SignatureType in InterestSignatureInfo"));
 
   m_type = readNonNegativeIntegerAs<tlv::SignatureTypeValue>(*it);
   ++it;
@@ -243,6 +344,30 @@ SignatureInfo::appendTypeSpecificTlv(const Block& block)
   m_otherTlvs.push_back(block);
 }
 
+uint32_t 
+InterestSignatureInfo::getNonce()
+{
+  if (m_nonce.has_value())
+    return *m_nonce;
+  NDN_THROW(Error("Nonce not set in InterestSignatureInfo"));
+}
+
+uint32_t 
+InterestSignatureInfo::getSeqNum()
+{
+  if (m_seqNum.has_value())
+    return *m_seqNum;
+  NDN_THROW(Error("Sequence number not set in InterestSignatureInfo"));
+}
+
+uint64_t 
+InterestSignatureInfo::getTime()
+{
+  if (m_time.has_value())
+    return *m_time;
+  NDN_THROW(Error("Time not set in InterestSignatureInfo"));
+}
+
 bool
 operator==(const SignatureInfo& lhs, const SignatureInfo& rhs)
 {
@@ -270,6 +395,19 @@ operator<<(std::ostream& os, const SignatureInfo& info)
     os << "}";
   }
 
+  return os;
+}
+
+bool
+operator==(const InterestSignatureInfo& lhs, const InterestSignatureInfo& rhs)
+{
+  return (SignatureInfo) lhs == (SignatureInfo) rhs;
+}
+
+std::ostream&
+operator<<(std::ostream& os, const InterestSignatureInfo& info)
+{
+  os << (SignatureInfo) info;
   return os;
 }
 

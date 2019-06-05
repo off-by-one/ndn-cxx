@@ -65,8 +65,42 @@ Signature::setValue(const Block& value)
   m_value = value;
 }
 
+InterestSignature::InterestSignature(const Block& info, const Block& value)
+  : m_info(info)
+  , m_value(value)
+{
+}
+
+
+InterestSignature::InterestSignature(const InterestSignatureInfo& info, const Block& value)
+  : m_info(info)
+  , m_value(value)
+{
+}
+
+void
+InterestSignature::setInfo(const Block& info)
+{
+  m_info = InterestSignatureInfo(info);
+}
+
+void
+InterestSignature::setValue(const Block& value)
+{
+  if (value.type() != tlv::InterestSignatureValue) {
+    NDN_THROW(Error("InterestSignatureValue", value.type()));
+  }
+  m_value = value;
+}
+
 bool
 operator==(const Signature& lhs, const Signature& rhs)
+{
+  return lhs.getSignatureInfo() == rhs.getSignatureInfo() && lhs.getValue() == rhs.getValue();
+}
+
+bool
+operator==(const InterestSignature& lhs, const InterestSignature& rhs)
 {
   return lhs.getSignatureInfo() == rhs.getSignatureInfo() && lhs.getValue() == rhs.getValue();
 }

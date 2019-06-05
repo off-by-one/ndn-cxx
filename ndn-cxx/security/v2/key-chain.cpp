@@ -459,7 +459,7 @@ KeyChain::sign(Interest& interest, const SigningInfo& params)
   }
 
   interest.setName(newName)
-          .setSignature(Signature(sigInfo).setIsInterestSignature());
+          .setSignature(Signature(sigInfo));
 
   EncodingBuffer packet;
   interest.wireEncodeUnsignedOnly(packet);

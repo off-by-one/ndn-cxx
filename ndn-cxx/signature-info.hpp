@@ -144,35 +144,10 @@ public: // field access
   void
   appendTypeSpecificTlv(const Block& element);
 
-  /** @brief Check if this is an Interest signature
-   */
-  bool
-  isInterestSignature() const
-  {
-    return m_isInterestSignature;
-  }
-
-  /** @brief Mark this as an Interest Signature
-   */
-  void
-  setIsInterestSignature()
-  {
-    m_isInterestSignature = true;
-  }
-
-  /** @brief Unmark this as an Interest Signature
-   */
-  void
-  unsetIsInterestSignature()
-  {
-    m_isInterestSignature = false;
-  }
-
-private:
+protected:
   int32_t m_type;
   bool m_hasKeyLocator;
   KeyLocator m_keyLocator;
-  bool m_isInterestSignature;
   std::list<Block> m_otherTlvs;
 
   mutable Block m_wire;
@@ -184,7 +159,112 @@ private:
   operator<<(std::ostream& os, const SignatureInfo& info);
 };
 
+class InterestSignatureInfo : public SignatureInfo
+{
+public:
+  /** @brief Create from wire encoding
+   *  @throw tlv::Error decode error
+   *
+   */
+  explicit
+  InterestSignatureInfo(const Block& wire);
+
+  /** @brief Fast encoding or block size estimation
+   *  @param encoder EncodingEstimator or EncodingBuffer instance
+   */
+  template<encoding::Tag TAG>
+  size_t
+  wireEncode(EncodingImpl<TAG>& encoder) const;
+
+  /** @brief Encode to wire format
+   */
+  const Block&
+  wireEncode() const;
+
+  /** @brief Decode from wire format
+   *  @throw tlv::Error decode error
+   */
+  void
+  wireDecode(const Block& wire);
+
+public: // field access
+  /** @brief Check if Nonce has been set
+   */
+  bool
+  hasNonce()
+  {
+    return m_nonce.has_value();
+  }
+
+  /** @brief Set a new Nonce value
+   */
+  void
+  setNonce(uint32_t nonce)
+  {
+    m_nonce = nonce;
+  }
+
+  /** @brief Get Nonce
+   *  @throw Error Nonce has not been set
+   */
+  uint32_t getNonce();
+
+  /** @brief Check if Sequence Number has been set
+   */
+  bool
+  hasSeqNum()
+  {
+    return m_nonce.has_value();
+  }
+
+  /** @brief Set a new Sequence Number value
+   */
+  void
+  setSeqNum(uint32_t seq_num)
+  {
+    m_seqNum = seq_num;
+  }
+
+  /** @brief Get Sequence Number
+   *  @throw Error Sequence Number has not been set
+   */
+  uint32_t getSeqNum();
+
+  /** @brief Check if Time has been set
+   */
+  bool
+  hasTime()
+  {
+    return m_time.has_value();
+  }
+
+  /** @brief Set a new Time value
+   */
+  void
+  setTime(uint64_t time)
+  {
+    m_time = time;
+  }
+
+  /** @brief Get Time
+   *  @throw Error Time has not been set
+   */
+  uint64_t getTime();
+
+private:
+  optional<uint32_t> m_nonce;
+  optional<uint32_t> m_seqNum;
+  optional<uint64_t> m_time;
+
+  friend bool
+  operator==(const InterestSignatureInfo& lhs, const InterestSignatureInfo& rhs);
+
+  friend std::ostream&
+  operator<<(std::ostream& os, const SignatureInfo& info);
+};
+
 NDN_CXX_DECLARE_WIRE_ENCODE_INSTANTIATIONS(SignatureInfo);
+NDN_CXX_DECLARE_WIRE_ENCODE_INSTANTIATIONS(InterestSignatureInfo);
 
 bool
 operator==(const SignatureInfo& lhs, const SignatureInfo& rhs);
@@ -197,6 +277,18 @@ operator!=(const SignatureInfo& lhs, const SignatureInfo& rhs)
 
 std::ostream&
 operator<<(std::ostream& os, const SignatureInfo& info);
+
+bool
+operator==(const InterestSignatureInfo& lhs, const InterestSignatureInfo& rhs);
+
+inline bool
+operator!=(const InterestSignatureInfo& lhs, const InterestSignatureInfo& rhs)
+{
+  return !(lhs == rhs);
+}
+
+std::ostream&
+operator<<(std::ostream& os, const InterestSignatureInfo& info);
 
 } // namespace ndn
 

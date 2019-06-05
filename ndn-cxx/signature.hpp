@@ -146,28 +146,53 @@ public: // SignatureInfo fields
     m_info.unsetKeyLocator();
   }
 
-  /** @brief Mark this as an Interest Signature
-   *  @return reference to this Interest
-   */
-  Signature&
-  setIsInterestSignature()
-  {
-    m_info.setIsInterestSignature();
-    return *this;
-  }
-
-  /** @brief Unmark this as an Interest Signature
-   *  @return reference to this Interest
-   */
-  Signature&
-  unsetIsInterestSignature()
-  {
-    m_info.unsetIsInterestSignature();
-    return *this;
-  }
-
 protected:
   SignatureInfo m_info;
+  mutable Block m_value;
+};
+
+/** @brief Holds InterestSignatureInfo and InterestSignatureValue in a Data packet
+ *
+ *  A InterestSignature is not a TLV element itself. It collects
+ *  InterestSignatureInfo and InterestSignatureValue TLV elements together for
+ *  easy access.
+ *  In most cases, an application should use a subclass of Signature such as @p DigestSha256 , @p
+ *  SignatureSha256WithRsa , or @p SignatureSha256WithEcdsa instead of using @p Signature type
+ *  directly.
+ */
+class InterestSignature : public Signature
+{
+public:
+  InterestSignature() = default;
+
+  explicit
+  InterestSignature(const Block& info, const Block& value = Block());
+
+  explicit
+  InterestSignature(const InterestSignatureInfo& info, const Block& value = Block());
+
+  /** @brief Get SignatureInfo
+   */
+  const InterestSignatureInfo&
+  getSignatureInfo() const
+  {
+    return m_info;
+  }
+
+  /** @brief Decode SignatureInfo from wire format
+   *  @throw tlv::Error decode error
+   */
+  void
+  setInfo(const Block& info);
+
+  /** @brief Set SignatureValue
+   *  @throws tlv::Error TLV-TYPE of supplied block is not SignatureValue, or the block does not have TLV-VALUE
+   */
+  void
+  setValue(const Block& value);
+
+protected:
+  InterestSignatureInfo m_info;
   mutable Block m_value;
 };
 
@@ -176,6 +201,15 @@ operator==(const Signature& lhs, const Signature& rhs);
 
 inline bool
 operator!=(const Signature& lhs, const Signature& rhs)
+{
+  return !(lhs == rhs);
+}
+
+bool
+operator==(const InterestSignature& lhs, const InterestSignature& rhs);
+
+inline bool
+operator!=(const InterestSignature& lhs, const InterestSignature& rhs)
 {
   return !(lhs == rhs);
 }
