@@ -25,6 +25,7 @@
 #include "ndn-cxx/util/config-file.hpp"
 #include "ndn-cxx/util/logger.hpp"
 #include "ndn-cxx/util/sha256.hpp"
+#include "ndn-cxx/util/random.hpp"
 
 #include "ndn-cxx/security/pib/pib-memory.hpp"
 #include "ndn-cxx/security/pib/pib-sqlite3.hpp"
@@ -70,6 +71,8 @@ NDN_LOG_INIT(ndn.security.v2.KeyChain);
 
 std::string KeyChain::s_defaultPibLocator;
 std::string KeyChain::s_defaultTpmLocator;
+
+uint32_t KeyChain::s_seqNum = 0;
 
 KeyChain::PibFactories&
 KeyChain::getPibFactories()
@@ -451,6 +454,16 @@ KeyChain::sign(Interest& interest, const SigningInfo& params)
   std::tie(keyName, sigInfoPartial) = prepareSignatureInfo(params);
 
   InterestSignatureInfo sigInfo(sigInfoPartial);
+
+  if (params.generateField(tlv::SignatureTime)) {
+    sigInfo.setTime();
+  }
+  if (params.generateField(tlv::SignatureNonce)) {
+    sigInfo.setNonce(random::generateWord32());
+  }
+  if (params.generateField(tlv::SignatureSeqNum)) {
+    sigInfo.setSeqNum(++s_seqNum);
+  }
 
   Name newName;
 

@@ -371,7 +371,7 @@ InterestSignatureInfo::getSeqNum()
 }
 
 void
-InterestSignatureInfo::setTime(time::system_clock::TimePoint time = time::system_clock::now())
+InterestSignatureInfo::setTime(time::system_clock::TimePoint time)
 {
   m_time = time;
 }

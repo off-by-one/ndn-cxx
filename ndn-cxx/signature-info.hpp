@@ -250,7 +250,7 @@ public: // field access
   /** @brief Set a new Time value
    */
   void
-  setTime(time::system_clock::TimePoint time);
+  setTime(time::system_clock::TimePoint time = time::system_clock::now());
 
   /** @brief Get Time
    *  @throw Error Time has not been set

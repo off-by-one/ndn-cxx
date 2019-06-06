@@ -219,25 +219,38 @@ public:
   }
 
   /**
-   * @brief Include tlv of field
-   * This may be ignored if the field is not
-   * compatible with the signature type
+   * @brief Calculate Signature time in SigInfo, ignored for non-Interest
    */
   SigningInfo&
-  setGeneratedField(uint32_t tlv);
+  genSignatureTime();
+
+  SigningInfo&
+  nogenSignatureTime();
 
   /**
-   * @brief Exclude tlv of field
+   * @brief Calculate Signature nonce in SigInfo, ignored for non-Interest
    */
   SigningInfo&
-  unsetGeneratedField(uint32_t tlv);
+  genSignatureNonce();
+
+  SigningInfo&
+  nogenSignatureNonce();
+
+  /**
+   * @brief Calculate Signature sequence number in SigInfo, ignored for non-Interest
+   */
+  SigningInfo&
+  genSignatureSeqNum();
+
+  SigningInfo&
+  nogenSignatureSeqNum();
 
   /**
    * @brief Query whether this tlv should
    * be added into the final signature info
    */
   bool
-  generateField(uint32_t tlv);
+  generateField(uint32_t tlv) const;
 
 public:
   static const Name&
