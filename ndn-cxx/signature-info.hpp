@@ -250,20 +250,17 @@ public: // field access
   /** @brief Set a new Time value
    */
   void
-  setTime(uint64_t time)
-  {
-    m_time = time;
-  }
+  setTime(time::system_clock::TimePoint time);
 
   /** @brief Get Time
    *  @throw Error Time has not been set
    */
-  uint64_t getTime();
+  time::system_clock::TimePoint getTime();
 
 private:
   optional<uint32_t> m_nonce;
   optional<uint32_t> m_seqNum;
-  optional<uint64_t> m_time;
+  optional<time::system_clock::TimePoint> m_time;
 
   friend bool
   operator==(const InterestSignatureInfo& lhs, const InterestSignatureInfo& rhs);

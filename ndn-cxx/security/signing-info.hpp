@@ -218,6 +218,27 @@ public:
     return m_info;
   }
 
+  /**
+   * @brief Include tlv of field
+   * This may be ignored if the field is not
+   * compatible with the signature type
+   */
+  SigningInfo&
+  setGeneratedField(uint32_t tlv);
+
+  /**
+   * @brief Exclude tlv of field
+   */
+  SigningInfo&
+  unsetGeneratedField(uint32_t tlv);
+
+  /**
+   * @brief Query whether this tlv should
+   * be added into the final signature info
+   */
+  bool
+  generateField(uint32_t tlv);
+
 public:
   static const Name&
   getEmptyName();
@@ -247,6 +268,7 @@ private:
   Key m_key;
   DigestAlgorithm m_digestAlgorithm;
   SignatureInfo m_info;
+  std::set<uint32_t> m_generatedFields;
 };
 
 std::ostream&

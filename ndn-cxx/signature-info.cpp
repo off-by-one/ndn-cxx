@@ -196,11 +196,11 @@ InterestSignatureInfo::wireEncode(EncodingImpl<TAG>& encoder) const
   }
 
   if (m_time.has_value()) {
-    uint32_t time = *m_time;
+    uint64_t ms = toUnixTimestamp(*m_time).count();
     totalLength += encoder.prependByteArrayBlock(
       tlv::SignatureTime,
-      reinterpret_cast<uint8_t*>(&time),
-      sizeof(time));
+      reinterpret_cast<uint8_t*>(&ms),
+      sizeof(ms));
   }
 
   if (m_nonce.has_value()) {
@@ -370,7 +370,13 @@ InterestSignatureInfo::getSeqNum()
   NDN_THROW(Error("Sequence number not set in InterestSignatureInfo"));
 }
 
-uint64_t 
+void
+InterestSignatureInfo::setTime(time::system_clock::TimePoint time = time::system_clock::now())
+{
+  m_time = time;
+}
+
+time::system_clock::TimePoint 
 InterestSignatureInfo::getTime()
 {
   if (m_time.has_value())
