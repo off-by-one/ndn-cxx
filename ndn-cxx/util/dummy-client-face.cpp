@@ -229,7 +229,7 @@ DummyClientFace::enableRegistrationReply()
     if (!localhostRegistration.isPrefixOf(interest.getName()))
       return;
 
-    nfd::ControlParameters params(interest.getName().get(-5).blockFromValue());
+    nfd::ControlParameters params(interest.getName().get(-2).blockFromValue());
     params.setFaceId(1);
     params.setOrigin(nfd::ROUTE_ORIGIN_APP);
     if (interest.getName().get(3) == name::Component("register")) {
