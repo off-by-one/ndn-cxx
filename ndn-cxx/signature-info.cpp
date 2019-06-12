@@ -89,14 +89,14 @@ SignatureInfo::wireEncode(EncodingImpl<TAG>& encoder) const
   }
 
   if (isInterestSignatureInfo()) {
-      if (m_seqNum.has_value()) {
+      if (m_seqNum) {
         prependNonNegativeIntegerBlock(encoder, tlv::SignatureSeqNum, *m_seqNum);
       }
-      if (m_timestamp.has_value()) {
+      if (m_timestamp) {
         uint64_t time = toUnixTimestamp(*m_timestamp).count();
         prependNonNegativeIntegerBlock(encoder, tlv::SignatureTime, time);
       }
-      if (m_nonce.has_value()) {
+      if (m_nonce) {
         prependNonNegativeIntegerBlock(encoder, tlv::SignatureNonce, *m_nonce);
       }
   }
@@ -229,21 +229,45 @@ SignatureInfo::unsetValidityPeriod()
 }
 
 void
-SignatureInfo::setSignatureTime(time::system_clock::TimePoint timestamp)
+SignatureInfo::setTime(time::system_clock::TimePoint timestamp)
 {
+  m_wire.reset();
   m_timestamp = timestamp;
 }
 
 void
-SignatureInfo::setSignatureNonce(uint32_t nonce)
+SignatureInfo::unsetTime()
 {
+  m_wire.reset();
+  m_timestamp = nullopt;
+}
+
+void
+SignatureInfo::setNonce(uint32_t nonce)
+{
+  m_wire.reset();
   m_nonce = nonce;
 }
 
 void
-SignatureInfo::setSignatureSequenceNumber(uint64_t seq_num)
+SignatureInfo::unsetNonce()
 {
+  m_wire.reset();
+  m_nonce = nullopt;
+}
+
+void
+SignatureInfo::setSequenceNumber(uint64_t seq_num)
+{
+  m_wire.reset();
   m_seqNum = seq_num;
+}
+
+void
+SignatureInfo::unsetSequenceNumber()
+{
+  m_wire.reset();
+  m_seqNum = nullopt;
 }
 
 const Block&

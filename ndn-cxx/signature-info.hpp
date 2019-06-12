@@ -22,6 +22,7 @@
 #ifndef NDN_SIGNATURE_INFO_HPP
 #define NDN_SIGNATURE_INFO_HPP
 
+#include "ndn-cxx/util/random.hpp"
 #include "ndn-cxx/key-locator.hpp"
 #include "ndn-cxx/security/validity-period.hpp"
 
@@ -136,19 +137,88 @@ public: // field access
    *  Only sent in Interest signatures
    */
   void
-  setSignatureTime(time::system_clock::TimePoint timestamp);
+  setTime(time::system_clock::TimePoint timestamp = time::system_clock::now());
 
-  /** @brief Set timestamp for this signature (default to random)
+  /** @brief Remove timestamp for this signature
+   */
+  void
+  unsetTime();
+
+  /** @brief Get timestamp for this signature
+   *  @throws When timestamp is not set
+   */
+  time::system_clock::TimePoint
+  getTime() const
+  {
+    BOOST_ASSERT(this->hasTime());
+    return *m_timestamp;
+  }
+
+  /** @brief Query whether this signature has a timestamp
+   */
+  bool
+  hasTime() const
+  {
+    return !!m_timestamp;
+  }
+
+  /** @brief Set nonce for this signature (default to random)
    *  Only sent in Interest signatures
    */
   void
-  setSignatureNonce(uint32_t nonce);
+  setNonce(uint32_t nonce = random::generateWord32());
 
-  /** @brief Set timestamp for this signature (default to now)
+  /** @brief Remove nonce from this signature
+   */
+  void
+  unsetNonce();
+
+  /** @brief Get nonce for this signature
+   *  @throws When nonce is not set
+   */
+  uint32_t
+  getNonce() const
+  {
+    BOOST_ASSERT(this->hasNonce());
+    return *m_nonce;
+  }
+
+  /** @brief Query whether this signature has a nonce
+   */
+  bool 
+  hasNonce() const
+  {
+    return !!m_nonce;
+  }
+
+  /** @brief Set sequence number for this signature
    *  Only sent in Interest signatures
    */
   void
-  setSignatureSequenceNumber(uint64_t seq_num);
+  setSequenceNumber(uint64_t seq_num);
+
+  /** @brief Remove sequence number from this signature
+   */
+  void
+  unsetSequenceNumber();
+
+  /** @brief Get sequence number for this signature
+   *  @throws When sequence number is not set
+   */
+  uint64_t 
+  getSequenceNumber() const
+  {
+    BOOST_ASSERT(this->hasSequenceNumber());
+    return *m_seqNum;
+  }
+
+  /** @brief Query whether this signature has a sequence number 
+   */
+  bool 
+  hasSequenceNumber() const
+  {
+    return !!m_seqNum;
+  }
 
   /** @brief Get SignatureType-specific sub-element
    *  @param type TLV-TYPE of sub-element
@@ -178,7 +248,7 @@ public: // field access
     return m_infoType == tlv::InterestSignatureInfo;
   }
 
-  /** @brief Mark this as an Interest Signature
+  /** @brief Set SignatureInfo TLV
    */
   void
   setInfoType(int32_t tlv)
