@@ -228,6 +228,24 @@ SignatureInfo::unsetValidityPeriod()
   }
 }
 
+void
+SignatureInfo::setSignatureTime(time::system_clock::TimePoint timestamp)
+{
+  m_timestamp = timestamp;
+}
+
+void
+SignatureInfo::setSignatureNonce(uint32_t nonce)
+{
+  m_nonce = nonce;
+}
+
+void
+SignatureInfo::setSignatureSequenceNumber(uint64_t seq_num)
+{
+  m_seqNum = seq_num;
+}
+
 const Block&
 SignatureInfo::getTypeSpecificTlv(uint32_t type) const
 {

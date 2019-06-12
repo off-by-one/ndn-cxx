@@ -148,7 +148,7 @@ public: // field access
    *  Only sent in Interest signatures
    */
   void
-  setSignatureSequenceNumber(uint32_t seq_num);
+  setSignatureSequenceNumber(uint64_t seq_num);
 
   /** @brief Get SignatureType-specific sub-element
    *  @param type TLV-TYPE of sub-element
