@@ -452,6 +452,8 @@ KeyChain::sign(Interest& interest, const SigningInfo& params)
   SignatureInfo sigInfo;
   std::tie(keyName, sigInfo) = prepareSignatureInfo(params);
 
+  sigInfo.setInfoType(tlv::InterestSignatureInfo);
+
   if (params.generateField(tlv::SignatureTime)) {
     sigInfo.setTime();
   }
