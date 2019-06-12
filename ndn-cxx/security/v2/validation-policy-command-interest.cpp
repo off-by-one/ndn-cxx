@@ -50,13 +50,13 @@ void
 ValidationPolicyCommandInterest::checkPolicy(const Interest& interest, const shared_ptr<ValidationState>& state,
                                              const ValidationContinuation& continueValidation)
 {
-  bool isOk = false;
-  Name keyName;
-  uint64_t timestamp = 0;
-  std::tie(isOk, keyName, timestamp) = parseCommandInterest(interest, state);
-  if (!isOk) {
+  if (!interest.hasSignature()) {
     return;
   }
+
+  SignatureInfo info = interest.getSignature().getSignatureInfo();
+  Name keyName = getKeyLocatorName(interest, *state);
+  uint64_t timestamp = toUnixTimestamp(info.getTime()).count();
 
   if (!checkTimestamp(state, keyName, timestamp)) {
     return;
@@ -76,31 +76,6 @@ ValidationPolicyCommandInterest::cleanup()
   }
 }
 
-std::tuple<bool, Name, uint64_t>
-ValidationPolicyCommandInterest::parseCommandInterest(const Interest& interest,
-                                                      const shared_ptr<ValidationState>& state) const
-{
-  const Name& name = interest.getName();
-  if (name.size() < command_interest::MIN_SIZE) {
-    state->fail({ValidationError::POLICY_ERROR, "Command interest name `" +
-                 interest.getName().toUri() + "` is too short"});
-    return std::make_tuple(false, Name(), 0);
-  }
-
-  const name::Component& timestampComp = name.at(command_interest::POS_TIMESTAMP);
-  if (!timestampComp.isNumber()) {
-    state->fail({ValidationError::POLICY_ERROR, "Command interest `" +
-                 interest.getName().toUri() + "` doesn't include timestamp component"});
-    return std::make_tuple(false, Name(), 0);
-  }
-
-  Name klName = getKeyLocatorName(interest, *state);
-  if (!state->getOutcome()) { // already failed
-    return std::make_tuple(false, Name(), 0);
-  }
-
-  return std::make_tuple(true, klName, timestampComp.toNumber());
-}
 
 bool
 ValidationPolicyCommandInterest::checkTimestamp(const shared_ptr<ValidationState>& state,
@@ -127,12 +102,12 @@ ValidationPolicyCommandInterest::checkTimestamp(const shared_ptr<ValidationState
 
   auto interestState = dynamic_pointer_cast<InterestValidationState>(state);
   BOOST_ASSERT(interestState != nullptr);
-  interestState->afterSuccess.connect([=] (const Interest&) { insertNewRecord(keyName, timestamp); });
+  interestState->afterSuccess.connect([=] (const Interest&) { insertNewTimeRecord(keyName, timestamp); });
   return true;
 }
 
 void
-ValidationPolicyCommandInterest::insertNewRecord(const Name& keyName, uint64_t timestamp)
+ValidationPolicyCommandInterest::insertNewTimeRecord(const Name& keyName, uint64_t timestamp)
 {
   // try to insert new record
   auto now = time::steady_clock::now();

@@ -37,15 +37,7 @@ Checker::check(uint32_t pktType, const Name& pktName, const Name& klName,
 {
   BOOST_ASSERT(pktType == tlv::Interest || pktType == tlv::Data);
 
-  if (pktType == tlv::Interest) {
-    if (pktName.size() < signed_interest::MIN_SIZE)
-      return false;
-
-    return checkNames(pktName.getPrefix(-signed_interest::MIN_SIZE), klName, state);
-  }
-  else {
-    return checkNames(pktName, klName, state);
-  }
+  return checkNames(pktName, klName, state);
 }
 
 NameRelationChecker::NameRelationChecker(const Name& name, const NameRelation& relation)

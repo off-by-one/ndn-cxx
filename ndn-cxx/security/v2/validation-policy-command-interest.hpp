@@ -123,7 +123,7 @@ private:
                  const Name& keyName, uint64_t timestamp);
 
   void
-  insertNewRecord(const Name& keyName, uint64_t timestamp);
+  insertNewTimeRecord(const Name& keyName, uint64_t timestamp);
 
 private:
   Options m_options;
