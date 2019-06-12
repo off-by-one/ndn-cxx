@@ -165,6 +165,54 @@ SigningInfo::setSignatureInfo(const SignatureInfo& signatureInfo)
   return *this;
 }
 
+SigningInfo&
+SigningInfo::genSignatureTime()
+{
+  m_generatedFields.insert(tlv::SignatureTime);
+  return *this;
+}
+
+SigningInfo&
+SigningInfo::nogenSignatureTime()
+{
+  m_generatedFields.erase(tlv::SignatureTime);
+  return *this;
+}
+
+SigningInfo&
+SigningInfo::genSignatureNonce()
+{
+  m_generatedFields.insert(tlv::SignatureNonce);
+  return *this;
+}
+
+SigningInfo&
+SigningInfo::nogenSignatureNonce()
+{
+  m_generatedFields.erase(tlv::SignatureNonce);
+  return *this;
+}
+
+SigningInfo&
+SigningInfo::genSignatureSeqNum()
+{
+  m_generatedFields.insert(tlv::SignatureSeqNum);
+  return *this;
+}
+
+SigningInfo&
+SigningInfo::nogenSignatureSeqNum()
+{
+  m_generatedFields.erase(tlv::SignatureSeqNum);
+  return *this;
+}
+
+bool
+SigningInfo::generateField(uint32_t tlv) const
+{
+  return m_generatedFields.find(tlv) != m_generatedFields.end();
+}
+
 std::ostream&
 operator<<(std::ostream& os, const SigningInfo& si)
 {

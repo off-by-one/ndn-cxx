@@ -218,6 +218,40 @@ public:
     return m_info;
   }
 
+  /**
+   * @brief Calculate Signature time in SigInfo, ignored for non-Interest
+   */
+  SigningInfo&
+  genSignatureTime();
+
+  SigningInfo&
+  nogenSignatureTime();
+
+  /**
+   * @brief Calculate Signature nonce in SigInfo, ignored for non-Interest
+   */
+  SigningInfo&
+  genSignatureNonce();
+
+  SigningInfo&
+  nogenSignatureNonce();
+
+  /**
+   * @brief Calculate Signature sequence number in SigInfo, ignored for non-Interest
+   */
+  SigningInfo&
+  genSignatureSeqNum();
+
+  SigningInfo&
+  nogenSignatureSeqNum();
+
+  /**
+   * @brief Query whether this tlv should
+   * be added into the final signature info
+   */
+  bool
+  generateField(uint32_t tlv) const;
+
 public:
   static const Name&
   getEmptyName();
@@ -247,6 +281,7 @@ private:
   Key m_key;
   DigestAlgorithm m_digestAlgorithm;
   SignatureInfo m_info;
+  std::set<uint32_t> m_generatedFields;
 };
 
 std::ostream&
