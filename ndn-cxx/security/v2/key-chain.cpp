@@ -456,7 +456,7 @@ KeyChain::sign(Interest& interest, const SigningInfo& params)
     sigInfo.setTime();
   }
   if (params.generateField(tlv::SignatureNonce)) {
-    sigInfo.setNonce(random::generateWord32());
+    sigInfo.setNonce();
   }
   if (params.generateField(tlv::SignatureSeqNum)) {
     sigInfo.setSequenceNumber(++s_seqNum);
@@ -475,7 +475,7 @@ KeyChain::sign(Interest& interest, const SigningInfo& params)
 
   EncodingBuffer signable;
   interest.wireEncodeSignableOnly(signable);
-  Block sigValue = sign(signable.buf(), signable.size(), keyName, params.getDigestAlgorithm());
+  Block sigValue = sign(signable.buf(), signable.size(), keyName, params.getDigestAlgorithm(), tlv::InterestSignatureValue);
   interest.setSignatureValue(sigValue);
 
   EncodingBuffer parameters;
@@ -694,12 +694,13 @@ KeyChain::prepareSignatureInfo(const SigningInfo& params)
 
 Block
 KeyChain::sign(const uint8_t* buf, size_t size,
-               const Name& keyName, DigestAlgorithm digestAlgorithm) const
+               const Name& keyName, DigestAlgorithm digestAlgorithm,
+               uint32_t tlv) const
 {
   if (keyName == SigningInfo::getDigestSha256Identity())
-    return Block(tlv::SignatureValue, util::Sha256::computeDigest(buf, size));
+    return Block(tlv, util::Sha256::computeDigest(buf, size));
 
-  return Block(tlv::SignatureValue, m_tpm->sign(buf, size, keyName, digestAlgorithm));
+  return Block(tlv, m_tpm->sign(buf, size, keyName, digestAlgorithm));
 }
 
 tlv::SignatureTypeValue

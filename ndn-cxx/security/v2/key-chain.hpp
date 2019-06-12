@@ -419,7 +419,7 @@ private: // signing
    *        a key with name @p keyName and digest algorithm @p digestAlgorithm.
    */
   Block
-  sign(const uint8_t* buf, size_t size, const Name& keyName, DigestAlgorithm digestAlgorithm) const;
+  sign(const uint8_t* buf, size_t size, const Name& keyName, DigestAlgorithm digestAlgorithm, uint32_t tlv = tlv::SignatureValue) const;
 
 public:
   static const SigningInfo&
