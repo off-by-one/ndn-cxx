@@ -106,6 +106,47 @@ Interest::wireEncode(EncodingImpl<TAG>& encoder) const
   }
 }
 
+size_t
+Interest::wireEncodeSignableOnly(EncodingBuffer& encoder, bool excludeName) const
+{
+  // Encode only the signed portions of an Interest packet
+
+  // { Name(without T, L, and ParametersSha256DigestComponent),
+  //   ApplicationParameters,
+  //   InterestSignatureInfo }
+
+  size_t totalLength = 0;
+  if (!(*m_signature)) {
+    NDN_THROW(Error("Requested Signed Interest wire format, but signature is invalid"));
+  }
+
+  if (!hasApplicationParameters()) {
+    NDN_THROW(Error("Requested Signed Interest wire format, but there are no Application Parameters"));
+  }
+
+  // SignatureValue
+  totalLength += encoder.prependBlock(m_signature->getValue());
+
+  // SignatureInfo
+  totalLength += encoder.prependBlock(m_signature->getInfo());
+
+  // Application Parameters
+  totalLength += encoder.prependBlock(getApplicationParameters());
+
+  if (excludeName) {
+    return totalLength;
+  }
+
+  // Name
+  for (auto component : getName()) {
+    if (!component.isParametersSha256Digest()) {
+      totalLength += component.wireEncode(encoder);
+    }
+  }
+
+  return totalLength;
+}
+
 template<encoding::Tag TAG>
 size_t
 Interest::encode02(EncodingImpl<TAG>& encoder) const
@@ -165,9 +206,27 @@ Interest::encode03(EncodingImpl<TAG>& encoder) const
   //                Nonce?
   //                InterestLifetime?
   //                HopLimit?
-  //                ApplicationParameters?
+  //                (ApplicationParameters |
+  //                 ApplicationParameters InterestSignatureInfo InterestSignatureValue)?
+
 
   // (reverse encoding)
+
+  if (m_signature.has_value()) {
+    if (!(*m_signature)) {
+      NDN_THROW(Error("Requested Signed Interest wire format, but signature is invalid"));
+    }
+
+    if (!hasApplicationParameters()) {
+      NDN_THROW(Error("Requested Signed Interest wire format, but there are no Application Parameters"));
+    }
+
+    // SignatureValue
+    totalLength += encoder.prependBlock(m_signature->getValue());
+
+    // SignatureInfo
+    totalLength += encoder.prependBlock(m_signature->getInfo());
+  }
 
   // ApplicationParameters
   if (hasApplicationParameters()) {
@@ -316,7 +375,8 @@ Interest::decode03()
   //                Nonce?
   //                InterestLifetime?
   //                HopLimit?
-  //                ApplicationParameters?
+  //                (ApplicationParameters |
+  //                 ApplicationParameters InterestSignatureInfo InterestSignatureValue)?
 
   auto element = m_wire.elements_begin();
   if (element == m_wire.elements_end() || element->type() != tlv::Name) {
@@ -404,6 +464,31 @@ Interest::decode03()
         }
         m_parameters = *element;
         lastElement = 8;
+        break;
+      }
+      case tlv::InterestSignatureInfo: {
+        if (lastElement >= 9) {
+          break; // InterestSignatureInfo is non-critical, ignore out-of-order appearance
+        }
+        if (!hasApplicationParameters()) {
+          NDN_THROW(Error("InterestSignatureInfo must be preceeded by Application Parameters"));
+        }
+        if (!hasSignature()) {
+            m_signature = Signature();
+        }
+        m_signature->setInfo(*element);
+        lastElement = 9;
+        break;
+      }
+      case tlv::InterestSignatureValue: {
+        if (lastElement >= 10) {
+          break; // InterestSignatureValue is non-critical, ignore out-of-order appearance
+        }
+        if (!hasSignature()) {
+          NDN_THROW(Error("InterestSignatureValue must be preceeded by InterestSignatureInfo"));
+        }
+        m_signature->setValue(*element);
+        lastElement = 10;
         break;
       }
       default: {
@@ -591,6 +676,27 @@ Interest::unsetApplicationParameters()
   return *this;
 }
 
+Interest&
+Interest::setSignature(const Signature& signature)
+{
+  m_wire.reset();
+
+  if (m_parameters.empty()) {
+    m_parameters = Block(tlv::ApplicationParameters);
+  }
+
+  m_signature = signature;
+  return *this;
+}
+
+Interest&
+Interest::setSignatureValue(const Block& value)
+{
+  m_wire.reset();
+  m_signature->setValue(value);
+  return *this;
+}
+
 // ---- operators ----
 
 bool
@@ -641,6 +747,11 @@ operator<<(std::ostream& os, const Interest& interest)
   }
   if (!interest.getExclude().empty()) {
     os << delim << "ndn.Exclude=" << interest.getExclude();
+    delim = '&';
+  }
+  if (interest.hasSignature()) {
+    os << delim << "ndn." << interest.getSignature().getType()
+       << "=" << interest.getSignature().getValue();
     delim = '&';
   }
 

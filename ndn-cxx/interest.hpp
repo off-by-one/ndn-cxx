@@ -24,6 +24,7 @@
 
 #include "ndn-cxx/delegation-list.hpp"
 #include "ndn-cxx/name.hpp"
+#include "ndn-cxx/signature.hpp"
 #include "ndn-cxx/selectors.hpp"
 #include "ndn-cxx/detail/packet-base.hpp"
 #include "ndn-cxx/util/time.hpp"
@@ -78,6 +79,11 @@ public:
    */
   const Block&
   wireEncode() const;
+
+  /** @brief Prepend wire encoding of signable portion to EncodingBuffer
+   */
+  size_t
+  wireEncodeSignableOnly(EncodingBuffer& encoder, bool excludeName = false) const;
 
   /** @brief Decode from @p wire in NDN Packet Format v0.2 or v0.3.
    */
@@ -331,6 +337,36 @@ public: // element access
   Interest&
   unsetApplicationParameters();
 
+public: // signature utilites
+  /** @brief Get Signature
+   */
+  const Signature&
+  getSignature() const
+  {
+    return *m_signature;
+  }
+
+  /** @brief Set Signature, implicitly marking this as a signed interest
+   *  Attempting to send signed Interest without a signature value is invalid
+   *  @return a reference to this Interest, to allow chaining
+   */
+  Interest&
+  setSignature(const Signature& signature);
+
+  /** @brief Set SignatureValue
+   *  @return a reference to this Interest, to allow chaining
+   */
+  Interest&
+  setSignatureValue(const Block& value);
+
+  /** @brief Check if this is a signed interest
+   */
+  bool
+  hasSignature() const
+  {
+    return m_signature.has_value();
+  }
+
 public: // Selectors (deprecated)
   /** @brief Check if Interest has any selector present.
    */
@@ -481,6 +517,7 @@ private:
   time::milliseconds m_interestLifetime;
   DelegationList m_forwardingHint;
   Block m_parameters; // NDN Packet Format v0.3 only
+  optional<Signature> m_signature;
 
   mutable Block m_wire;
 
