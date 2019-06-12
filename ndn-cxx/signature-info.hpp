@@ -150,7 +150,8 @@ public: // field access
   time::system_clock::TimePoint
   getTime() const
   {
-    BOOST_ASSERT(this->hasTime());
+    if (!m_timestamp)
+      NDN_THROW(Error("Timestamp does not exist in SignatureInfo"));
     return *m_timestamp;
   }
 
@@ -179,13 +180,14 @@ public: // field access
   uint32_t
   getNonce() const
   {
-    BOOST_ASSERT(this->hasNonce());
+    if (!m_nonce)
+      NDN_THROW(Error("Nonce does not exist in SignatureInfo"));
     return *m_nonce;
   }
 
   /** @brief Query whether this signature has a nonce
    */
-  bool 
+  bool
   hasNonce() const
   {
     return !!m_nonce;
@@ -205,16 +207,17 @@ public: // field access
   /** @brief Get sequence number for this signature
    *  @throws When sequence number is not set
    */
-  uint64_t 
+  uint64_t
   getSequenceNumber() const
   {
-    BOOST_ASSERT(this->hasSequenceNumber());
+    if (!m_seqNum)
+      NDN_THROW(Error("Sequence Number does not exist in SignatureInfo"));
     return *m_seqNum;
   }
 
-  /** @brief Query whether this signature has a sequence number 
+  /** @brief Query whether this signature has a sequence number
    */
-  bool 
+  bool
   hasSequenceNumber() const
   {
     return !!m_seqNum;
@@ -245,7 +248,7 @@ public: // field access
   bool
   isDataSignatureInfo() const
   {
-    return m_infoType == tlv::InterestSignatureInfo;
+    return m_infoType == tlv::SignatureInfo;
   }
 
   /** @brief Set SignatureInfo TLV
@@ -254,7 +257,7 @@ public: // field access
   setInfoType(int32_t tlv)
   {
     if (!validInfoType(tlv)) {
-      NDN_THROW(std::invalid_argument("Info Type must be a valid SignatureInfo TLV"));
+      NDN_THROW(Error("Info Type must be a valid SignatureInfo TLV"));
     }
     m_infoType = tlv;
   }
@@ -264,7 +267,7 @@ public: // field access
   static bool
   validInfoType(int32_t tlv)
   {
-    return tlv == tlv::SignatureInfo && tlv == tlv::InterestSignatureInfo;
+    return tlv == tlv::SignatureInfo || tlv == tlv::InterestSignatureInfo;
   }
 
 private:
@@ -277,7 +280,7 @@ private:
   optional<uint64_t> m_seqNum;
   optional<time::system_clock::TimePoint> m_timestamp;
   optional<uint64_t> m_nonce;
-  
+
   mutable Block m_wire;
 
   friend bool

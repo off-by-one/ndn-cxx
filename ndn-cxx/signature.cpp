@@ -58,10 +58,10 @@ Signature::setInfo(const Block& info)
 void
 Signature::setValue(const Block& value)
 {
-  bool bothDataTypes = value.type() == tlv::SignatureValue && m_info.isDataSignatureInfo();
-  bool bothInterestTypes = value.type() == tlv::InterestSignatureValue && m_info.isInterestSignatureInfo();
+  bool validDataSig = value.type() == tlv::SignatureValue && m_info.isDataSignatureInfo();
+  bool validInterestSig = value.type() == tlv::InterestSignatureValue && m_info.isInterestSignatureInfo();
 
-  if (bothDataTypes || bothInterestTypes) {
+  if (validDataSig || validInterestSig) {
     m_value = value;
     return;
   }

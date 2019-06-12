@@ -138,6 +138,12 @@ BOOST_AUTO_TEST_CASE(SetterGetter)
   BOOST_CHECK_EQUAL(info.getSignatureType(), -1);
   BOOST_CHECK_EQUAL(info.hasKeyLocator(), false);
   BOOST_CHECK_THROW(info.getKeyLocator(), SignatureInfo::Error);
+  BOOST_CHECK_EQUAL(info.hasNonce(), false);
+  BOOST_CHECK_THROW(info.getNonce(), SignatureInfo::Error);
+  BOOST_CHECK_EQUAL(info.hasTime(), false);
+  BOOST_CHECK_THROW(info.getTime(), SignatureInfo::Error);
+  BOOST_CHECK_EQUAL(info.hasSequenceNumber(), false);
+  BOOST_CHECK_THROW(info.getSequenceNumber(), SignatureInfo::Error);
 
   info.setSignatureType(tlv::SignatureSha256WithRsa);
   BOOST_CHECK_EQUAL(info.getSignatureType(), tlv::SignatureSha256WithRsa);
@@ -149,6 +155,7 @@ BOOST_AUTO_TEST_CASE(SetterGetter)
   BOOST_CHECK_NO_THROW(info.getKeyLocator());
   BOOST_CHECK_EQUAL(info.getKeyLocator().getName(), Name("/test/key/locator"));
 
+
   const Block& encoded = info.wireEncode();
   Block sigInfoBlock(sigInfoRsa, sizeof(sigInfoRsa));
 
@@ -156,6 +163,52 @@ BOOST_AUTO_TEST_CASE(SetterGetter)
                                 sigInfoBlock.wire() + sigInfoBlock.size(),
                                 encoded.wire(),
                                 encoded.wire() + encoded.size());
+
+  BOOST_CHECK_EQUAL(info.isDataSignatureInfo(), true);
+  BOOST_CHECK_EQUAL(info.isInterestSignatureInfo(), false);
+  BOOST_CHECK_THROW(info.setInfoType(tlv::SignatureValue), SignatureInfo::Error);
+  BOOST_CHECK_NO_THROW(info.setInfoType(tlv::InterestSignatureInfo));
+  BOOST_CHECK_EQUAL(info.isDataSignatureInfo(), false);
+  BOOST_CHECK_EQUAL(info.isInterestSignatureInfo(), true);
+
+  info.setNonce();
+  BOOST_CHECK_EQUAL(info.hasNonce(), true);
+  BOOST_CHECK_NO_THROW(info.getNonce());
+
+  uint32_t nonce = 1531917720;
+  info.setNonce(nonce);
+  BOOST_CHECK_EQUAL(info.hasNonce(), true);
+  BOOST_CHECK_NO_THROW(info.getNonce());
+  BOOST_CHECK_EQUAL(info.getNonce(), nonce);
+
+  time::system_clock::TimePoint time = time::system_clock::now();
+  info.setTime();
+  BOOST_CHECK_EQUAL(info.hasTime(), true);
+  BOOST_CHECK_NO_THROW(info.getTime());
+  BOOST_CHECK_GT(info.getTime(), time);
+
+  info.setTime(time);
+  BOOST_CHECK_EQUAL(info.hasTime(), true);
+  BOOST_CHECK_NO_THROW(info.getTime());
+  BOOST_CHECK_EQUAL(info.getTime(), time);
+
+  uint64_t sequenceNumber = 25;
+  info.setSequenceNumber(sequenceNumber);
+  BOOST_CHECK_EQUAL(info.hasSequenceNumber(), true);
+  BOOST_CHECK_NO_THROW(info.getSequenceNumber());
+  BOOST_CHECK_EQUAL(info.getSequenceNumber(), sequenceNumber);
+
+  info.unsetTime();
+  BOOST_CHECK_EQUAL(info.hasTime(), false);
+  BOOST_CHECK_THROW(info.getTime(), SignatureInfo::Error);
+
+  info.unsetNonce();
+  BOOST_CHECK_EQUAL(info.hasNonce(), false);
+  BOOST_CHECK_THROW(info.getNonce(), SignatureInfo::Error);
+
+  info.unsetSequenceNumber();
+  BOOST_CHECK_EQUAL(info.hasSequenceNumber(), false);
+  BOOST_CHECK_THROW(info.getSequenceNumber(), SignatureInfo::Error);
 
   info.unsetKeyLocator();
   BOOST_CHECK_EQUAL(info.hasKeyLocator(), false);

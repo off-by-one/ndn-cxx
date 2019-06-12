@@ -90,14 +90,14 @@ SignatureInfo::wireEncode(EncodingImpl<TAG>& encoder) const
 
   if (isInterestSignatureInfo()) {
       if (m_seqNum) {
-        prependNonNegativeIntegerBlock(encoder, tlv::SignatureSeqNum, *m_seqNum);
+        totalLength += prependNonNegativeIntegerBlock(encoder, tlv::SignatureSeqNum, *m_seqNum);
       }
       if (m_timestamp) {
         uint64_t time = toUnixTimestamp(*m_timestamp).count();
-        prependNonNegativeIntegerBlock(encoder, tlv::SignatureTime, time);
+        totalLength += prependNonNegativeIntegerBlock(encoder, tlv::SignatureTime, time);
       }
       if (m_nonce) {
-        prependNonNegativeIntegerBlock(encoder, tlv::SignatureNonce, *m_nonce);
+        totalLength += prependNonNegativeIntegerBlock(encoder, tlv::SignatureNonce, *m_nonce);
       }
   }
 
@@ -107,7 +107,6 @@ SignatureInfo::wireEncode(EncodingImpl<TAG>& encoder) const
   totalLength += prependNonNegativeIntegerBlock(encoder, tlv::SignatureType,
                                                 static_cast<uint64_t>(m_type));
   totalLength += encoder.prependVarNumber(totalLength);
-
   totalLength += encoder.prependVarNumber(m_infoType);
 
   return totalLength;
