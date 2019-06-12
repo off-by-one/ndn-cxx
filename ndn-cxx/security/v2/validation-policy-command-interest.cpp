@@ -113,7 +113,10 @@ ValidationPolicyCommandInterest::insertNewTimeRecord(const Name& keyName, uint64
   auto now = time::steady_clock::now();
   auto i = m_queue.end();
   bool isNew = false;
-  LastTimestampRecord newRecord{keyName, timestamp, now};
+  ReplayRecord newRecord;
+  newRecord.keyName = keyName;
+  newRecord.timestamp = timestamp,
+  newRecord.lastRefreshed = now;
   std::tie(i, isNew) = m_queue.push_back(newRecord);
 
   if (!isNew) {
