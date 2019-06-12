@@ -132,6 +132,24 @@ public: // field access
   void
   unsetValidityPeriod();
 
+  /** @brief Set timestamp for this signature (default to now)
+   *  Only sent in Interest signatures
+   */
+  void
+  setSignatureTime(time::system_clock::TimePoint timestamp);
+
+  /** @brief Set timestamp for this signature (default to random)
+   *  Only sent in Interest signatures
+   */
+  void
+  setSignatureNonce(uint32_t nonce);
+
+  /** @brief Set timestamp for this signature (default to now)
+   *  Only sent in Interest signatures
+   */
+  void
+  setSignatureSequenceNumber(uint32_t seq_num);
+
   /** @brief Get SignatureType-specific sub-element
    *  @param type TLV-TYPE of sub-element
    *  @throw Error sub-element of specified type does not exist
@@ -144,12 +162,52 @@ public: // field access
   void
   appendTypeSpecificTlv(const Block& element);
 
+  /** @brief Check if this is an Interest signature
+   */
+  bool
+  isInterestSignatureInfo() const
+  {
+    return m_infoType == tlv::InterestSignatureInfo;
+  }
+
+  /** @brief Check if this is a Data signature
+   */
+  bool
+  isDataSignatureInfo() const
+  {
+    return m_infoType == tlv::InterestSignatureInfo;
+  }
+
+  /** @brief Mark this as an Interest Signature
+   */
+  void
+  setInfoType(int32_t tlv)
+  {
+    if (!validInfoType(tlv)) {
+      NDN_THROW(std::invalid_argument("Info Type must be a valid SignatureInfo TLV"));
+    }
+    m_infoType = tlv;
+  }
+
+  /** @brief Check whether a given TLV is a valid info type
+   */
+  static bool
+  validInfoType(int32_t tlv)
+  {
+    return tlv == tlv::SignatureInfo && tlv == tlv::InterestSignatureInfo;
+  }
+
 private:
   int32_t m_type;
+  int32_t m_infoType;
   bool m_hasKeyLocator;
   KeyLocator m_keyLocator;
   std::list<Block> m_otherTlvs;
 
+  optional<uint64_t> m_seqNum;
+  optional<time::system_clock::TimePoint> m_timestamp;
+  optional<uint64_t> m_nonce;
+  
   mutable Block m_wire;
 
   friend bool

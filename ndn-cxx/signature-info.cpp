@@ -35,12 +35,14 @@ static_assert(std::is_base_of<tlv::Error, SignatureInfo::Error>::value,
 SignatureInfo::SignatureInfo()
   : m_type(-1)
   , m_hasKeyLocator(false)
+  , m_infoType(tlv::SignatureInfo)
 {
 }
 
 SignatureInfo::SignatureInfo(tlv::SignatureTypeValue type)
   : m_type(type)
   , m_hasKeyLocator(false)
+  , m_infoType(tlv::SignatureInfo)
 {
 }
 
@@ -48,6 +50,7 @@ SignatureInfo::SignatureInfo(tlv::SignatureTypeValue type, const KeyLocator& key
   : m_type(type)
   , m_hasKeyLocator(true)
   , m_keyLocator(keyLocator)
+  , m_infoType(tlv::SignatureInfo)
 {
 }
 
@@ -70,10 +73,32 @@ SignatureInfo::wireEncode(EncodingImpl<TAG>& encoder) const
   //                     ValidityPeriod? (if present, stored as first item of m_otherTlvs)
   //                     other SignatureType-specific sub-elements*
 
+  // InterestSignatureInfo ::=
+  //        INTEREST-SIGNATURE-INFO-TLV TLV-LENGTH
+  //          SignatureType
+  //          KeyLocator?
+  //          SignatureNonce?
+  //          SignatureTime?
+  //          SignatureSeqNum?
+  //          other SignatureType-specific sub-elements*
+
   size_t totalLength = 0;
 
   for (auto i = m_otherTlvs.rbegin(); i != m_otherTlvs.rend(); i++) {
     totalLength += encoder.prependBlock(*i);
+  }
+
+  if (isInterestSignatureInfo()) {
+      if (m_seqNum.has_value()) {
+        prependNonNegativeIntegerBlock(encoder, tlv::SignatureSeqNum, *m_seqNum);
+      }
+      if (m_timestamp.has_value()) {
+        uint64_t time = toUnixTimestamp(*m_timestamp).count();
+        prependNonNegativeIntegerBlock(encoder, tlv::SignatureTime, time);
+      }
+      if (m_nonce.has_value()) {
+        prependNonNegativeIntegerBlock(encoder, tlv::SignatureNonce, *m_nonce);
+      }
   }
 
   if (m_hasKeyLocator)
@@ -82,7 +107,8 @@ SignatureInfo::wireEncode(EncodingImpl<TAG>& encoder) const
   totalLength += prependNonNegativeIntegerBlock(encoder, tlv::SignatureType,
                                                 static_cast<uint64_t>(m_type));
   totalLength += encoder.prependVarNumber(totalLength);
-  totalLength += encoder.prependVarNumber(tlv::SignatureInfo);
+
+  totalLength += encoder.prependVarNumber(m_infoType);
 
   return totalLength;
 }
@@ -115,8 +141,11 @@ SignatureInfo::wireDecode(const Block& wire)
   m_wire = wire;
   m_wire.parse();
 
-  if (m_wire.type() != tlv::SignatureInfo)
+  if (!validInfoType(m_wire.type())) {
     NDN_THROW(Error("SignatureInfo", m_wire.type()));
+  }
+
+  m_infoType = m_wire.type();
 
   auto it = m_wire.elements_begin();
 
@@ -223,6 +252,9 @@ operator==(const SignatureInfo& lhs, const SignatureInfo& rhs)
   return lhs.m_type == rhs.m_type &&
          lhs.m_hasKeyLocator == rhs.m_hasKeyLocator &&
          lhs.m_keyLocator == rhs.m_keyLocator &&
+         lhs.m_seqNum == rhs.m_seqNum &&
+         lhs.m_timestamp == rhs.m_timestamp &&
+         lhs.m_nonce == rhs.m_nonce &&
          lhs.m_otherTlvs == rhs.m_otherTlvs;
 }
 
