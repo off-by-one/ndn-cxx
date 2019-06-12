@@ -71,7 +71,7 @@ NDN_LOG_INIT(ndn.security.v2.KeyChain);
 std::string KeyChain::s_defaultPibLocator;
 std::string KeyChain::s_defaultTpmLocator;
 
-uint32_t KeyChain::s_seqNum = 0;
+uint64_t KeyChain::s_seqNum = 0;
 
 KeyChain::PibFactories&
 KeyChain::getPibFactories()
@@ -459,7 +459,7 @@ KeyChain::sign(Interest& interest, const SigningInfo& params)
     sigInfo.setNonce(random::generateWord32());
   }
   if (params.generateField(tlv::SignatureSeqNum)) {
-    sigInfo.setSeqNum(++s_seqNum);
+    sigInfo.setSequenceNumber(++s_seqNum);
   }
 
   Name newName;
