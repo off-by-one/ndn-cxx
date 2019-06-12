@@ -434,6 +434,8 @@ private:
 
   static std::string s_defaultPibLocator;
   static std::string s_defaultTpmLocator;
+
+  uint32_t s_seqNum;
 };
 
 template<class PibType>
