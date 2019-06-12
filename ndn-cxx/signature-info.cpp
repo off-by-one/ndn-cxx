@@ -162,6 +162,35 @@ SignatureInfo::wireDecode(const Block& wire)
     ++it;
   }
 
+  // if this is an InterestSignatureInfo, attempt to read optional fields
+  if (isInterestSignatureInfo()) {
+    bool optionalFieldsFinished = false;
+    for (; it != m_wire.elements_end(); ++it) {
+      switch (it->type()) {
+        case tlv::SignatureNonce: {
+          uint32_t nonce = 0;
+          if (it->value_size() != sizeof(nonce)) {
+            NDN_THROW(Error("Nonce element is malformed"));
+          }
+          std::memcpy(&nonce, it->value(), sizeof(nonce));
+          m_nonce = nonce;
+          break;
+        }
+        case tlv::SignatureSeqNum:
+          m_seqNum = readNonNegativeInteger(*it);
+          break;
+        case tlv::SignatureTime:
+          m_timestamp = time::fromUnixTimestamp(time::milliseconds(readNonNegativeInteger(*it)));
+          break;
+        default:
+          optionalFieldsFinished = true;
+          break;
+      }
+      if (optionalFieldsFinished)
+        break;
+    }
+  }
+
   // store SignatureType-specific sub-elements, if any
   while (it != m_wire.elements_end()) {
     m_otherTlvs.push_back(*it);
