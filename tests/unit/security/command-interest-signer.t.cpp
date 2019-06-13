@@ -40,25 +40,21 @@ BOOST_AUTO_TEST_CASE(Basic)
 
   CommandInterestSigner signer(m_keyChain);
   Interest i1 = signer.makeCommandInterest("/hello/world");
-  BOOST_CHECK_EQUAL(i1.getName().size(), 6);
-  BOOST_CHECK_EQUAL(i1.getName().at(command_interest::POS_SIG_VALUE).blockFromValue().type(), tlv::SignatureValue);
-  BOOST_CHECK_EQUAL(i1.getName().at(command_interest::POS_SIG_INFO).blockFromValue().type(), tlv::SignatureInfo);
+  BOOST_CHECK_EQUAL(i1.getName().get(-1).isParametersSha256Digest(), true);
+  BOOST_CHECK_EQUAL(i1.hasSignature(), true);
 
-  time::milliseconds timestamp = toUnixTimestamp(time::system_clock::now());
-  BOOST_CHECK_EQUAL(i1.getName().at(command_interest::POS_TIMESTAMP).toNumber(), timestamp.count());
+  time::system_clock::TimePoint timestamp = time::system_clock::now();
+  BOOST_CHECK_EQUAL(i1.getSignature().getSignatureInfo().getTime(), timestamp);
 
   Interest i2 = signer.makeCommandInterest("/hello/world/!", signingByIdentity("/test"));
-  BOOST_CHECK_EQUAL(i2.getName().size(), 7);
-  BOOST_CHECK_EQUAL(i2.getName().at(command_interest::POS_SIG_VALUE).blockFromValue().type(), tlv::SignatureValue);
-  BOOST_CHECK_EQUAL(i2.getName().at(command_interest::POS_SIG_INFO).blockFromValue().type(), tlv::SignatureInfo);
-  BOOST_CHECK_GT(i2.getName().at(command_interest::POS_TIMESTAMP), i1.getName().at(command_interest::POS_TIMESTAMP));
-  BOOST_CHECK_NE(i2.getName().at(command_interest::POS_RANDOM_VAL),
-                 i1.getName().at(command_interest::POS_RANDOM_VAL)); // this sometimes can fail
+  BOOST_CHECK_EQUAL(i2.getName().get(-1).isParametersSha256Digest(), true);
+  BOOST_CHECK_EQUAL(i2.hasSignature(), true);
+  BOOST_CHECK_GE(i2.getSignature().getSignatureInfo().getTime(), i1.getSignature().getSignatureInfo().getTime());
 
   advanceClocks(100_s);
 
   i2 = signer.makeCommandInterest("/hello/world/!");
-  BOOST_CHECK_GT(i2.getName().at(command_interest::POS_TIMESTAMP), i1.getName().at(command_interest::POS_TIMESTAMP));
+  BOOST_CHECK_GT(i2.getSignature().getSignatureInfo().getTime(), i1.getSignature().getSignatureInfo().getTime());
 }
 
 BOOST_AUTO_TEST_SUITE_END() // TestCommandInterestSigner

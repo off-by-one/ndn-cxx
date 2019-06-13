@@ -52,6 +52,7 @@ SigningInfo::SigningInfo(SignerType signerType,
   , m_name(signerName)
   , m_digestAlgorithm(DigestAlgorithm::SHA256)
   , m_info(signatureInfo)
+  , m_generatedFields({tlv::SignatureTime})
 {
   BOOST_ASSERT(signerType == SIGNER_TYPE_NULL ||
                signerType == SIGNER_TYPE_ID ||
