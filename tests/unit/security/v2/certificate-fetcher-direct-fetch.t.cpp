@@ -221,6 +221,8 @@ BOOST_FIXTURE_TEST_CASE_TEMPLATE(ValidateFailureDataNoTagDirectOnly, T, Failures
 
 BOOST_FIXTURE_TEST_CASE(ValidateSuccessInterest, CertificateFetcherDirectFetchFixture<Cert>)
 {
+  BOOST_TEST_MESSAGE("test");
+  BOOST_TEST_MESSAGE(boost::to_string(this->interest));
   VALIDATE_SUCCESS(this->interest, "Should get accepted, normal and/or direct interests bring certs");
   BOOST_CHECK_EQUAL(this->face.sentInterests.size(), 4);
 
