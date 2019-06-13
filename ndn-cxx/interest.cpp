@@ -107,16 +107,47 @@ Interest::wireEncode(EncodingImpl<TAG>& encoder) const
 }
 
 size_t
-Interest::wireEncodeSuffix(EncodingBuffer& encoder, bool excludeSig) const
+Interest::wireEncodeSuffix(EncodingBuffer& encoder, bool excludeValue) const
 {
-  // Encode only the signed portions of an Interest packet
-
-  // { Name(without T, L, and ParametersSha256DigestComponent),
-  //   ApplicationParameters,
-  //   InterestSignatureInfo }
-
   size_t totalLength = 0;
-  if (!(*m_signature)) {
+
+  bool encodeParams = hasApplicationParameters();
+  bool encodeSigInfo = encodeParams && hasSignature();
+  bool encodeSigValue = encodeSigInfo && !excludeValue;
+
+  if (encodeSigValue) {
+    totalLength += encoder.prependBlock(m_signature->getValue());
+  }
+
+  if (encodeSigInfo) {
+    totalLength += encoder.prependBlock(m_signature->getInfo());
+  }
+
+  if (encodeParams) {
+    totalLength += encoder.prependBlock(getApplicationParameters());
+  }
+
+  return totalLength;
+}
+
+Block
+Interest::wireEncodeSuffix() const
+{
+  EncodingBuffer encoder;
+  wireEncodeSuffix(encoder);
+  return Block(encoder);
+}
+
+Block
+Interest::wireEncodeSignable() const
+{
+  EncodingBuffer encoder;
+
+  if (!hasSignature()) {
+    NDN_THROW(Error("Requested Signed Interest wire format for unsigned Interest"));
+  }
+
+  if (!getSignature()) {
     NDN_THROW(Error("Requested Signed Interest wire format, but signature is invalid"));
   }
 
@@ -124,18 +155,15 @@ Interest::wireEncodeSuffix(EncodingBuffer& encoder, bool excludeSig) const
     NDN_THROW(Error("Requested Signed Interest wire format, but there are no Application Parameters"));
   }
 
-  // SignatureValue
-  if (!excludeSig) {
-    totalLength += encoder.prependBlock(m_signature->getValue());
+  wireEncodeSuffix(encoder, true);
+
+  for (auto& component: m_name) {
+    if (!component.isParametersSha256Digest()) {
+      encoder.prependBlock(component);
+    }
   }
 
-  // SignatureInfo
-  totalLength += encoder.prependBlock(m_signature->getInfo());
-
-  // Application Parameters
-  totalLength += encoder.prependBlock(getApplicationParameters());
-
-  return totalLength;
+  return Block(encoder);
 }
 
 template<encoding::Tag TAG>
