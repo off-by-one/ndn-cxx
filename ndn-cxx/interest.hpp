@@ -80,10 +80,13 @@ public:
   const Block&
   wireEncode() const;
 
-  /** @brief Prepend wire encoding of signable portion to EncodingBuffer
+  /** @brief Prepend wire encoding of suffix
+   *
+   * Suffix currently includes ApplicationParameters, InterestSignatureInfo,
+   * and InterestSignatureValue, which can be excluded via the flag
    */
   size_t
-  wireEncodeSignableOnly(EncodingBuffer& encoder, bool excludeName = false) const;
+  wireEncodeSuffix(EncodingBuffer& encoder, bool excludeSig = false) const;
 
   /** @brief Decode from @p wire in NDN Packet Format v0.2 or v0.3.
    */

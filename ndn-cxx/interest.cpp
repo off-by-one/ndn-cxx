@@ -107,7 +107,7 @@ Interest::wireEncode(EncodingImpl<TAG>& encoder) const
 }
 
 size_t
-Interest::wireEncodeSignableOnly(EncodingBuffer& encoder, bool excludeName) const
+Interest::wireEncodeSuffix(EncodingBuffer& encoder, bool excludeSig) const
 {
   // Encode only the signed portions of an Interest packet
 
@@ -125,24 +125,15 @@ Interest::wireEncodeSignableOnly(EncodingBuffer& encoder, bool excludeName) cons
   }
 
   // SignatureValue
-  totalLength += encoder.prependBlock(m_signature->getValue());
+  if (!excludeSig) {
+    totalLength += encoder.prependBlock(m_signature->getValue());
+  }
 
   // SignatureInfo
   totalLength += encoder.prependBlock(m_signature->getInfo());
 
   // Application Parameters
   totalLength += encoder.prependBlock(getApplicationParameters());
-
-  if (excludeName) {
-    return totalLength;
-  }
-
-  // Name
-  for (auto component : getName()) {
-    if (!component.isParametersSha256Digest()) {
-      totalLength += component.wireEncode(encoder);
-    }
-  }
 
   return totalLength;
 }
