@@ -154,6 +154,7 @@ public: // element access
   setName(const Name& name)
   {
     m_name = name;
+    m_signable.reset();
     m_wire.reset();
     return *this;
   }
@@ -173,6 +174,7 @@ public: // element access
 
     m_name.appendParametersSha256Digest(digest);
 
+    m_signable.reset();
     m_wire.reset();
     return *this;
   }
