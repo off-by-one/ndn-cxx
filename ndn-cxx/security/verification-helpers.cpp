@@ -87,10 +87,9 @@ static std::tuple<bool, const uint8_t*, size_t, const uint8_t*, size_t>
 parse(const Interest& interest)
 {
   try {
-    EncodingBuffer encoder;
-    interest.wireEncodeSignableOnly(encoder);
-
-    return std::make_tuple(true, encoder.buf(), encoder.size(),
+    return std::make_tuple(true,
+                           interest.getSignable()->get<uint8_t>(),
+                           interest.getSignable()->size(),
                            interest.getSignature().getValue().value(),
                            interest.getSignature().getValue().value_size());
   }
