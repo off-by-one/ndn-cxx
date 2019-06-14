@@ -150,7 +150,6 @@ Interest::getSignable() const
     NDN_THROW(Error("Requested Signed Interest wire format, but there are no Application Parameters"));
   }
 
-  encoder.prependBlock(m_signature->getValue());
   encoder.prependBlock(m_signature->getInfo());
   encoder.prependBlock(getApplicationParameters());
 
@@ -660,6 +659,7 @@ Interest::setApplicationParameters(const Block& parameters)
   else {
     m_parameters = Block(tlv::ApplicationParameters, parameters);
   }
+  m_signable.reset();
   m_wire.reset();
   return *this;
 }
@@ -671,6 +671,7 @@ Interest::setApplicationParameters(const uint8_t* buffer, size_t bufferSize)
     NDN_THROW(std::invalid_argument("ApplicationParameters buffer cannot be nullptr"));
   }
   m_parameters = makeBinaryBlock(tlv::ApplicationParameters, buffer, bufferSize);
+  m_signable.reset();
   m_wire.reset();
   return *this;
 }
@@ -682,6 +683,7 @@ Interest::setApplicationParameters(ConstBufferPtr buffer)
     NDN_THROW(std::invalid_argument("ApplicationParameters buffer cannot be nullptr"));
   }
   m_parameters = Block(tlv::ApplicationParameters, std::move(buffer));
+  m_signable.reset();
   m_wire.reset();
   return *this;
 }
@@ -690,6 +692,7 @@ Interest&
 Interest::unsetApplicationParameters()
 {
   m_parameters = {};
+  m_signable.reset();
   m_wire.reset();
   return *this;
 }
@@ -697,6 +700,7 @@ Interest::unsetApplicationParameters()
 Interest&
 Interest::setSignature(const Signature& signature)
 {
+  m_signable.reset();
   m_wire.reset();
 
   if (m_parameters.empty()) {
