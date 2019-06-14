@@ -94,7 +94,19 @@ public:
      */
     time::nanoseconds timestampRecordLifetime = 1_h;
 
-  public: // 
+  public: // Sequence Number options
+    bool checkSequenceNumber = false;
+
+    ssize_t maxSequenceNumberRecords = 1000;
+
+    time::nanoseconds sequenceNumberRecordLifetime = 1_h;
+
+  public: // Nonce options
+    bool checkNonce = false;
+
+    ssize_t maxNonceRecords = 1000;
+
+    time::nanoseconds nonceRecordLifetime = 1_h;
   };
 
   /** \brief constructor
@@ -120,15 +132,32 @@ private:
   void
   cleanupTimestamps();
 
-  std::tuple<bool, Name, uint64_t>
-  parseCommandInterest(const Interest& interest, const shared_ptr<ValidationState>& state) const;
-
   bool
   checkTimestamp(const shared_ptr<ValidationState>& state,
                  const Name& keyName, uint64_t timestamp);
 
   void
   insertNewTimeRecord(const Name& keyName, uint64_t timestamp);
+
+  void
+  cleanupSequenceNumbers();
+
+  bool
+  checkSequenceNumber(const shared_ptr<ValidationState>& state,
+                      const Name& keyName, uint64_t sequenceNumber);
+
+  void
+  insertNewSequenceRecord(const Name& keyName, uint64_t sequenceNumber);
+
+  void
+  cleanupNonces();
+
+  bool
+  checkNonce(const shared_ptr<ValidationState>& state,
+                      const Name& keyName, uint64_t sequenceNumber);
+
+  void
+  insertNewNonceRecord(const Name& keyName, uint64_t sequenceNumber);
 
 private:
   Options m_options;
@@ -182,15 +211,15 @@ private:
   struct NonceRecord
   {
     Name keyName;
-    uint64_t timestamp;
+    uint64_t nonce;
     time::steady_clock::TimePoint timeAdded;
   };
 
   using NonceContainer = boost::multi_index_container<
     NonceRecord,
     boost::multi_index::indexed_by<
-      boost::multi_index::ordered_unique<
-        boost::multi_index::member<NonceRecord, Name, &NonceRecord::keyName>
+      boost::multi_index::hashed_non_unique<
+        boost::multi_index::member<NonceRecord, uint64_t, &NonceRecord::nonce>
       >,
       boost::multi_index::sequenced<>
     >

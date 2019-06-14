@@ -63,12 +63,40 @@ ValidationPolicyCommandInterest::checkPolicy(const Interest& interest, const sha
   Name keyName = getKeyLocatorName(interest, *state);
 
   if (m_options.checkTimestamp) {
+    if (!info.hasTime()) {
+      state->fail({ValidationError::POLICY_ERROR, "Interest has no timestamp"});
+      return;
+    }
+
     uint64_t timestamp = toUnixTimestamp(info.getTime()).count();
 
     if (!checkTimestamp(state, keyName, timestamp)) {
       return;
     }
   }
+
+  if (m_options.checkSequenceNumber) {
+    if (!info.hasSequenceNumber()) {
+      state->fail({ValidationError::POLICY_ERROR, "Interest has no sequence number"});
+      return;
+    }
+
+    if (!checkSequenceNumber(state, keyName, info.getSequenceNumber())) {
+      return;
+    }
+  }
+
+  if (m_options.checkNonce) {
+    if (!info.hasNonce()) {
+      state->fail({ValidationError::POLICY_ERROR, "Interest has no nonce"});
+      return;
+    }
+
+    if (!checkNonce(state, keyName, info.getNonce())) {
+      return;
+    }
+  }
+
   getInnerPolicy().checkPolicy(interest, state, std::bind(continueValidation, _1, _2));
 }
 
@@ -83,7 +111,6 @@ ValidationPolicyCommandInterest::cleanupTimestamps()
     m_tqueue.pop_front();
   }
 }
-
 
 bool
 ValidationPolicyCommandInterest::checkTimestamp(const shared_ptr<ValidationState>& state,
@@ -132,6 +159,108 @@ ValidationPolicyCommandInterest::insertNewTimeRecord(const Name& keyName, uint64
     isNew = m_tqueue.push_back(newRecord).second;
     BOOST_VERIFY(isNew);
   }
+}
+
+void
+ValidationPolicyCommandInterest::cleanupSequenceNumbers()
+{
+  auto expiring = time::steady_clock::now() - m_options.timestampRecordLifetime;
+
+  while ((!m_squeue.empty() && m_squeue.front().lastRefreshed <= expiring) ||
+         (m_options.maxSequenceNumberRecords >= 0 &&
+          m_squeue.size() > static_cast<size_t>(m_options.maxSequenceNumberRecords))) {
+    m_squeue.pop_front();
+  }
+}
+
+bool
+ValidationPolicyCommandInterest::checkSequenceNumber(
+  const shared_ptr<ValidationState>& state,
+  const Name& keyName,
+  uint64_t seq_num)
+{
+  this->cleanupTimestamps();
+
+  auto it = m_sindex.find(keyName);
+  if (it != m_sindex.end()) {
+    if (seq_num <= it->seq_num) {
+      state->fail({ValidationError::POLICY_ERROR,
+                   "Sequenec Number is reordered for key " + keyName.toUri()});
+      return false;
+    }
+  }
+
+  auto interestState = dynamic_pointer_cast<InterestValidationState>(state);
+  BOOST_ASSERT(interestState != nullptr);
+  interestState->afterSuccess.connect([=] (const Interest&) { insertNewSequenceRecord(keyName, seq_num); });
+  return true;
+}
+
+void
+ValidationPolicyCommandInterest::insertNewSequenceRecord(const Name& keyName, uint64_t seq_num)
+{
+  // try to insert new record
+  auto now = time::steady_clock::now();
+  auto i = m_squeue.end();
+  bool isNew = false;
+  LastSequenceRecord newRecord{keyName, seq_num, now};
+  std::tie(i, isNew) = m_squeue.push_back(newRecord);
+
+  if (!isNew) {
+    BOOST_ASSERT(i->keyName == keyName);
+
+    // set lastRefreshed field, and move to queue tail
+    m_squeue.erase(i);
+    isNew = m_squeue.push_back(newRecord).second;
+    BOOST_VERIFY(isNew);
+  }
+}
+
+void
+ValidationPolicyCommandInterest::cleanupNonces()
+{
+  auto expiring = time::steady_clock::now() - m_options.nonceRecordLifetime;
+
+  while ((!m_nqueue.empty() && m_nqueue.front().timeAdded <= expiring) ||
+         (m_options.maxNonceRecords >= 0 &&
+          m_nqueue.size() > static_cast<size_t>(m_options.maxNonceRecords))) {
+    m_nqueue.pop_front();
+  }
+}
+
+bool
+ValidationPolicyCommandInterest::checkNonce(const shared_ptr<ValidationState>& state,
+                                            const Name& keyName, uint64_t nonce)
+{
+  this->cleanupNonces();
+
+  NonceIndex::iterator start;
+  NonceIndex::iterator end;
+  boost::tie(start, end) = m_nindex.equal_range(nonce);
+
+  for ( ; start != end ; start++) {
+    if (keyName == start->keyName) {
+      state->fail({ValidationError::POLICY_ERROR,
+                   "Nonce is repeated for key " + keyName.toUri()});
+      return false;
+    }
+  }
+
+  auto interestState = dynamic_pointer_cast<InterestValidationState>(state);
+  BOOST_ASSERT(interestState != nullptr);
+  interestState->afterSuccess.connect([=] (const Interest&) { insertNewNonceRecord(keyName, nonce); });
+  return true;
+}
+
+void
+ValidationPolicyCommandInterest::insertNewNonceRecord(const Name& keyName, uint64_t nonce)
+{
+  // try to insert new record
+  auto now = time::steady_clock::now();
+  auto i = m_nqueue.end();
+  bool isNew = false;
+  NonceRecord newRecord{keyName, nonce, now};
+  std::tie(i, isNew) = m_nqueue.push_back(newRecord);
 }
 
 } // namespace v2
