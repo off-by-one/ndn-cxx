@@ -466,26 +466,16 @@ KeyChain::sign(Interest& interest, const SigningInfo& params)
 
   interest.setSignature(Signature(sigInfo));
 
-  EncodingBuffer encoder;
-  Name newName;
-
-  interest.wireEncodeSuffix(encoder, true);
-
-  for (auto& c: interest.getName()) {
-    if (!c.isParametersSha256Digest()) {
-      newName.append(c);
-
-      c.wireEncode(encoder);
-    }
-  }
-
-  Block sigValue = sign(encoder.buf(), encoder.size(), keyName, params.getDigestAlgorithm(), tlv::InterestSignatureValue);
+  Block sigValue = sign(interest.getSignable()->get<uint8_t>(),
+                        interest.getSignable()->size(),
+                        keyName,
+                        params.getDigestAlgorithm(),
+                        tlv::InterestSignatureValue);
   interest.setSignatureValue(sigValue);
 
-  Block suffix = interest.wireEncodeSuffix();
-  newName.appendParametersSha256Digest(util::Sha256::computeDigest(suffix.value(), suffix.value_size()));
-
-  interest.setName(newName);
+  ConstBufferPtr suffix = interest.getSuffix();
+  ConstBufferPtr digest = util::Sha256::computeDigest(suffix->get<uint8_t>(), suffix->size());
+  interest.setSha256Digest(digest);
 }
 
 Block
