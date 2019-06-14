@@ -106,41 +106,36 @@ Interest::wireEncode(EncodingImpl<TAG>& encoder) const
   }
 }
 
-size_t
-Interest::wireEncodeSuffix(EncodingBuffer& encoder, bool excludeValue) const
+ConstBufferPtr
+Interest::getSuffix(bool excludeValue) const
 {
-  size_t totalLength = 0;
+  EncodingBuffer encoder;
 
   bool encodeParams = hasApplicationParameters();
   bool encodeSigInfo = encodeParams && hasSignature();
   bool encodeSigValue = encodeSigInfo && !excludeValue;
 
   if (encodeSigValue) {
-    totalLength += encoder.prependBlock(m_signature->getValue());
+    encoder.prependBlock(m_signature->getValue());
   }
 
   if (encodeSigInfo) {
-    totalLength += encoder.prependBlock(m_signature->getInfo());
+    encoder.prependBlock(m_signature->getInfo());
   }
 
   if (encodeParams) {
-    totalLength += encoder.prependBlock(getApplicationParameters());
+    encoder.prependBlock(getApplicationParameters());
   }
 
-  return totalLength;
+  return encoder.getBuffer();
 }
 
-Block
-Interest::wireEncodeSuffix() const
+ConstBufferPtr
+Interest::getSignable() const
 {
-  EncodingBuffer encoder;
-  wireEncodeSuffix(encoder);
-  return Block(encoder);
-}
+  if (m_signable != nullptr)
+    return m_signable;
 
-Block
-Interest::wireEncodeSignable() const
-{
   EncodingBuffer encoder;
 
   if (!hasSignature()) {
@@ -155,7 +150,9 @@ Interest::wireEncodeSignable() const
     NDN_THROW(Error("Requested Signed Interest wire format, but there are no Application Parameters"));
   }
 
-  wireEncodeSuffix(encoder, true);
+  encoder.prependBlock(m_signature->getValue());
+  encoder.prependBlock(m_signature->getInfo());
+  encoder.prependBlock(getApplicationParameters());
 
   for (auto& component: m_name) {
     if (!component.isParametersSha256Digest()) {
@@ -163,7 +160,9 @@ Interest::wireEncodeSignable() const
     }
   }
 
-  return Block(encoder);
+  m_signable = encoder.getBuffer();
+
+  return m_signable;
 }
 
 template<encoding::Tag TAG>

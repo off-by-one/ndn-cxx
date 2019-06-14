@@ -80,27 +80,22 @@ public:
   const Block&
   wireEncode() const;
 
-  /** @brief Encode suffix to an EncodingBuffer.
+  /** @brief Get a Buffer of the suffix
    *
    * Suffix currently includes ApplicationParameters, InterestSignatureInfo,
    * and InterestSignatureValue, which can be excluded via the flag
    */
-  size_t
-  wireEncodeSuffix(EncodingBuffer& encoder, bool excludeValue = false) const;
+  ConstBufferPtr 
+  getSuffix(bool excludeValue = false) const;
 
-  /** @brief Encode suffix to a Block.
-   */
-  Block
-  wireEncodeSuffix() const;
-
-  /** @brief Encode signable part of Interest to a Block.
+  /** @brief Get a @c Buffer of the signable portion
    *  @throws Invalid Signed Interest format
    *
    *  Signable portions include non-paramater digest Name components,
    *  ApplicationParameters, and InterestSingatureInfo
    */
-  Block
-  wireEncodeSignable() const;
+  ConstBufferPtr
+  getSignable() const;
 
   /** @brief Decode from @p wire in NDN Packet Format v0.2 or v0.3.
    */
@@ -159,6 +154,25 @@ public: // element access
   setName(const Name& name)
   {
     m_name = name;
+    m_wire.reset();
+    return *this;
+  }
+
+  Interest&
+  setSha256Digest(ConstBufferPtr digest)
+  {
+    Name old_name(m_name);
+
+    m_name.clear();
+
+    for (auto& c: old_name) {
+      if (!c.isParametersSha256Digest()) {
+        m_name.append(c);
+      }
+    }
+
+    m_name.appendParametersSha256Digest(digest);
+
     m_wire.reset();
     return *this;
   }
@@ -537,6 +551,7 @@ private:
   optional<Signature> m_signature;
 
   mutable Block m_wire;
+  mutable ConstBufferPtr m_signable;
 
   friend bool operator==(const Interest& lhs, const Interest& rhs);
 };
