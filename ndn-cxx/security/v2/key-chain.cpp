@@ -476,34 +476,6 @@ KeyChain::sign(Interest& interest, const SigningInfo& params)
   ConstBufferPtr suffix = interest.getSuffix();
   ConstBufferPtr digest = util::Sha256::computeDigest(suffix->get<uint8_t>(), suffix->size());
   interest.setSha256Digest(digest);
-=======
-    sigInfo.setNonce(random::generateWord32());
-  }
-  if (params.generateField(tlv::SignatureSeqNum)) {
-    sigInfo.setSeqNum(++s_seqNum);
-  }
-
-  Name newName;
-
-  for (auto& c: interest.getName()) {
-    if (!c.isParametersSha256Digest()) {
-      newName.append(c);
-    }
-  }
-
-  interest.setName(newName)
-          .setSignature(Signature(sigInfo));
-
-  EncodingBuffer signable;
-  interest.wireEncodeSignableOnly(signable);
-  Block sigValue = sign(signable.buf(), signable.size(), keyName, params.getDigestAlgorithm());
-  interest.setSignatureValue(sigValue);
-
-  EncodingBuffer parameters;
-  interest.wireEncodeSignableOnly(parameters, true);
-  newName.appendParametersSha256Digest(util::Sha256::computeDigest(parameters.buf(), parameters.size()));
-  interest.setName(newName);
->>>>>>> KeyChain/SigningInfo support for InterestSigning
 }
 
 Block
