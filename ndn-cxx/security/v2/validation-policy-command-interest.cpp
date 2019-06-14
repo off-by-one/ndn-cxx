@@ -28,8 +28,12 @@ namespace v2 {
 ValidationPolicyCommandInterest::ValidationPolicyCommandInterest(unique_ptr<ValidationPolicy> inner,
                                                                  const Options& options)
   : m_options(options)
-  , m_index(m_container.get<0>())
-  , m_queue(m_container.get<1>())
+  , m_tindex(m_tcontainer.get<0>())
+  , m_tqueue(m_tcontainer.get<1>())
+  , m_sindex(m_scontainer.get<0>())
+  , m_squeue(m_scontainer.get<1>())
+  , m_nindex(m_ncontainer.get<0>())
+  , m_nqueue(m_ncontainer.get<1>())
 {
   if (inner == nullptr) {
     NDN_THROW(std::invalid_argument("inner policy is missing"));
@@ -51,28 +55,32 @@ ValidationPolicyCommandInterest::checkPolicy(const Interest& interest, const sha
                                              const ValidationContinuation& continueValidation)
 {
   if (!interest.hasSignature()) {
+    state->fail({ValidationError::POLICY_ERROR, "Interest is not signed"});
     return;
   }
 
   SignatureInfo info = interest.getSignature().getSignatureInfo();
   Name keyName = getKeyLocatorName(interest, *state);
-  uint64_t timestamp = toUnixTimestamp(info.getTime()).count();
 
-  if (!checkTimestamp(state, keyName, timestamp)) {
-    return;
+  if (m_options.checkTimestamp) {
+    uint64_t timestamp = toUnixTimestamp(info.getTime()).count();
+
+    if (!checkTimestamp(state, keyName, timestamp)) {
+      return;
+    }
   }
   getInnerPolicy().checkPolicy(interest, state, std::bind(continueValidation, _1, _2));
 }
 
 void
-ValidationPolicyCommandInterest::cleanup()
+ValidationPolicyCommandInterest::cleanupTimestamps()
 {
-  auto expiring = time::steady_clock::now() - m_options.recordLifetime;
+  auto expiring = time::steady_clock::now() - m_options.timestampRecordLifetime;
 
-  while ((!m_queue.empty() && m_queue.front().lastRefreshed <= expiring) ||
-         (m_options.maxRecords >= 0 &&
-          m_queue.size() > static_cast<size_t>(m_options.maxRecords))) {
-    m_queue.pop_front();
+  while ((!m_tqueue.empty() && m_tqueue.front().lastRefreshed <= expiring) ||
+         (m_options.maxTimestampRecords >= 0 &&
+          m_tqueue.size() > static_cast<size_t>(m_options.maxTimestampRecords))) {
+    m_tqueue.pop_front();
   }
 }
 
@@ -81,21 +89,21 @@ bool
 ValidationPolicyCommandInterest::checkTimestamp(const shared_ptr<ValidationState>& state,
                                                 const Name& keyName, uint64_t timestamp)
 {
-  this->cleanup();
+  this->cleanupTimestamps();
 
   auto now = time::system_clock::now();
   auto timestampPoint = time::fromUnixTimestamp(time::milliseconds(timestamp));
   if (timestampPoint < now - m_options.gracePeriod || timestampPoint > now + m_options.gracePeriod) {
     state->fail({ValidationError::POLICY_ERROR,
-                 "Timestamp is outside the grace period for key " + keyName.toUri()});
+                 "Time is outside the grace period for key " + keyName.toUri()});
     return false;
   }
 
-  auto it = m_index.find(keyName);
-  if (it != m_index.end()) {
+  auto it = m_tindex.find(keyName);
+  if (it != m_tindex.end()) {
     if (timestamp <= it->timestamp) {
       state->fail({ValidationError::POLICY_ERROR,
-                   "Timestamp is reordered for key " + keyName.toUri()});
+                   "Time is reordered for key " + keyName.toUri()});
       return false;
     }
   }
@@ -111,20 +119,17 @@ ValidationPolicyCommandInterest::insertNewTimeRecord(const Name& keyName, uint64
 {
   // try to insert new record
   auto now = time::steady_clock::now();
-  auto i = m_queue.end();
+  auto i = m_tqueue.end();
   bool isNew = false;
-  ReplayRecord newRecord;
-  newRecord.keyName = keyName;
-  newRecord.timestamp = timestamp,
-  newRecord.lastRefreshed = now;
-  std::tie(i, isNew) = m_queue.push_back(newRecord);
+  LastTimestampRecord newRecord{keyName, timestamp, now};
+  std::tie(i, isNew) = m_tqueue.push_back(newRecord);
 
   if (!isNew) {
     BOOST_ASSERT(i->keyName == keyName);
 
     // set lastRefreshed field, and move to queue tail
-    m_queue.erase(i);
-    isNew = m_queue.push_back(newRecord).second;
+    m_tqueue.erase(i);
+    isNew = m_tqueue.push_back(newRecord).second;
     BOOST_VERIFY(isNew);
   }
 }

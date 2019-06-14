@@ -50,12 +50,8 @@ public:
     {
     }
 
-  public: // per-field configuration
-    /** \brief specify whether timestamp should be checked
-     *
-     * By default all signed interests are required to have a timestamp
-     */
-    bool requireTimestamp = true;
+  public: // Timestamp options
+    bool checkTimestamp = true;
 
     /** \brief tolerance of initial timestamp
      *
@@ -72,30 +68,13 @@ public:
      */
     time::nanoseconds gracePeriod = 2_min;
 
-    /* Specify whether sequence number should be checked
-     * By default signed interests are not required to have a sequence number
-     */
-    bool requireSequenceNumber = false;
-
-    /* Specify whether nonce should be checked
-     * By default signed interests are not required to have a nonce
-     */
-    bool requireNonce = false;
-
-    /* Specify maximum number of nonce records per key to store
-     */
-    ssize_t maxNonceRecords = 1000;
-
-  public: // record lifetime / amount configuration
-
-    /** \brief max number of distinct public keys of which to record replay data
+    /** \brief max number of distinct public keys of which to record the last timestamp
      *
-     *  The validator records last timestamps, sequence numbers, and a
-     *  collection of nonces for every public key.  For a subsequent command
-     *  Interest using the same public key, its replay data is compared to the
-     *  last updated replay data from that public key, and the command Interest
-     *  is rejected if it lacks any required fields or fails the requisite
-     *  checks (newer timestamp, higher sequence number, and new nonce).
+     *  The validator records last timestamps for every public key.
+     *  For a subsequent command Interest using the same public key,
+     *  its timestamp is compared to the last timestamp from that public key,
+     *  and the command Interest is rejected if its timestamp is
+     *  less than or equal to the recorded timestamp.
      *
      *  This option limits the number of distinct public keys being tracked.
      *  If the limit is exceeded, the oldest record is deleted.
@@ -104,16 +83,18 @@ public:
      *  Setting this option to 0 disables last timestamp records and causes
      *  every command Interest to be processed as initial.
      */
-    ssize_t maxRecords = 1000;
+    ssize_t maxTimestampRecords = 1000;
 
-    /** \brief max lifetime of a replay record
+    /** \brief max lifetime of a last timestamp record
      *
-     *  A record expires and can be deleted if it has not been refreshed
+     *  A last timestamp record expires and can be deleted if it has not been refreshed
      *  within this duration.
-     *  Setting this option to 0 or negative makes records expire immediately
+     *  Setting this option to 0 or negative makes last timestamp records expire immediately
      *  and causes every command Interest to be processed as initial.
      */
-    time::nanoseconds recordLifetime = 1_h;
+    time::nanoseconds timestampRecordLifetime = 1_h;
+
+  public: // 
   };
 
   /** \brief constructor
@@ -137,7 +118,7 @@ protected:
 
 private:
   void
-  cleanup();
+  cleanupTimestamps();
 
   std::tuple<bool, Name, uint64_t>
   parseCommandInterest(const Interest& interest, const shared_ptr<ValidationState>& state) const;
@@ -152,54 +133,74 @@ private:
 private:
   Options m_options;
 
-  using NonceContainer = boost::multi_index_container<
-    uint64_t,
+  struct LastTimestampRecord
+  {
+    Name keyName;
+    uint64_t timestamp;
+    time::steady_clock::TimePoint lastRefreshed;
+  };
+
+  using TimeContainer = boost::multi_index_container<
+    LastTimestampRecord,
     boost::multi_index::indexed_by<
-      boost::multi_index::hashed_unique<boost::multi_index::identity<uint64_t>>,
+      boost::multi_index::ordered_unique<
+        boost::multi_index::member<LastTimestampRecord, Name, &LastTimestampRecord::keyName>
+      >,
+      boost::multi_index::sequenced<>
+    >
+  >;
+  using TimeIndex = TimeContainer::nth_index<0>::type;
+  using TimeQueue = TimeContainer::nth_index<1>::type;
+
+  TimeContainer m_tcontainer;
+  TimeIndex& m_tindex;
+  TimeQueue& m_tqueue;
+
+  struct LastSequenceRecord
+  {
+    Name keyName;
+    uint64_t seq_num;
+    time::steady_clock::TimePoint lastRefreshed;
+  };
+
+  using SequenceContainer = boost::multi_index_container<
+    LastSequenceRecord,
+    boost::multi_index::indexed_by<
+      boost::multi_index::ordered_unique<
+        boost::multi_index::member<LastSequenceRecord, Name, &LastSequenceRecord::keyName>
+      >,
+      boost::multi_index::sequenced<>
+    >
+  >;
+  using SequenceIndex = SequenceContainer::nth_index<0>::type;
+  using SequenceQueue = SequenceContainer::nth_index<1>::type;
+
+  SequenceContainer m_scontainer;
+  SequenceIndex& m_sindex;
+  SequenceQueue& m_squeue;
+
+  struct NonceRecord
+  {
+    Name keyName;
+    uint64_t timestamp;
+    time::steady_clock::TimePoint timeAdded;
+  };
+
+  using NonceContainer = boost::multi_index_container<
+    NonceRecord,
+    boost::multi_index::indexed_by<
+      boost::multi_index::ordered_unique<
+        boost::multi_index::member<NonceRecord, Name, &NonceRecord::keyName>
+      >,
       boost::multi_index::sequenced<>
     >
   >;
   using NonceIndex = NonceContainer::nth_index<0>::type;
   using NonceQueue = NonceContainer::nth_index<1>::type;
 
-  struct NonceRecords{
-    NonceRecords()
-      : index(container.get<0>())
-      , queue(container.get<1>())
-    {
-    }
-
-    NonceContainer container;
-    NonceIndex& index;
-    NonceQueue& queue;
-  };
-
-  struct ReplayRecord
-  {
-    Name keyName;
-
-    uint64_t timestamp;
-    uint64_t seqNum;
-    NonceRecords nonces;
-
-    time::steady_clock::TimePoint lastRefreshed;
-  };
-
-  using Container = boost::multi_index_container<
-    ReplayRecord,
-    boost::multi_index::indexed_by<
-      boost::multi_index::ordered_unique<
-        boost::multi_index::member<ReplayRecord, Name, &ReplayRecord::keyName>
-      >,
-      boost::multi_index::sequenced<>
-    >
-  >;
-  using Index = Container::nth_index<0>::type;
-  using Queue = Container::nth_index<1>::type;
-
-  Container m_container;
-  Index& m_index;
-  Queue& m_queue;
+  NonceContainer m_ncontainer;
+  NonceIndex& m_nindex;
+  NonceQueue& m_nqueue;
 };
 
 } // namespace v2
