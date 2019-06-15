@@ -106,64 +106,6 @@ Interest::wireEncode(EncodingImpl<TAG>& encoder) const
   }
 }
 
-ConstBufferPtr
-Interest::getSuffix(bool excludeValue) const
-{
-  EncodingBuffer encoder;
-
-  bool encodeParams = hasApplicationParameters();
-  bool encodeSigInfo = encodeParams && hasSignature();
-  bool encodeSigValue = encodeSigInfo && !excludeValue;
-
-  if (encodeSigValue) {
-    encoder.prependBlock(m_signature->getValue());
-  }
-
-  if (encodeSigInfo) {
-    encoder.prependBlock(m_signature->getInfo());
-  }
-
-  if (encodeParams) {
-    encoder.prependBlock(getApplicationParameters());
-  }
-
-  return encoder.getBuffer();
-}
-
-ConstBufferPtr
-Interest::getSignable() const
-{
-  if (m_signable != nullptr)
-    return m_signable;
-
-  EncodingBuffer encoder;
-
-  if (!hasSignature()) {
-    NDN_THROW(Error("Requested Signed Interest wire format for unsigned Interest"));
-  }
-
-  if (!getSignature()) {
-    NDN_THROW(Error("Requested Signed Interest wire format, but signature is invalid"));
-  }
-
-  if (!hasApplicationParameters()) {
-    NDN_THROW(Error("Requested Signed Interest wire format, but there are no Application Parameters"));
-  }
-
-  encoder.prependBlock(m_signature->getInfo());
-  encoder.prependBlock(getApplicationParameters());
-
-  for (auto& component: m_name) {
-    if (!component.isParametersSha256Digest()) {
-      encoder.prependBlock(component);
-    }
-  }
-
-  m_signable = encoder.getBuffer();
-
-  return m_signable;
-}
-
 template<encoding::Tag TAG>
 size_t
 Interest::encode02(EncodingImpl<TAG>& encoder) const
@@ -229,13 +171,13 @@ Interest::encode03(EncodingImpl<TAG>& encoder) const
 
   // (reverse encoding)
 
-  if (m_signature.has_value()) {
+  if (hasSignature()) {
     if (!(*m_signature)) {
-      NDN_THROW(Error("Requested Signed Interest wire format, but signature is invalid"));
+      NDN_THROW(Error("Requested Signed Interest wire format, signature invalid"));
     }
 
     if (!hasApplicationParameters()) {
-      NDN_THROW(Error("Requested Signed Interest wire format, but there are no Application Parameters"));
+      NDN_THROW(Error("Requested Signed Interest wire format, no Application Parameters"));
     }
 
     // SignatureValue
@@ -488,12 +430,15 @@ Interest::decode03()
           break; // InterestSignatureInfo is non-critical, ignore out-of-order appearance
         }
         if (!hasApplicationParameters()) {
-          NDN_THROW(Error("InterestSignatureInfo must be preceeded by Application Parameters"));
+          NDN_THROW(Error("InterestSignatureInfo must be preceeded by App Params"));
         }
         if (!hasSignature()) {
             m_signature = Signature();
         }
         m_signature->setInfo(*element);
+        if (!m_signature->getSignatureInfo().isInterestSignatureInfo()) {
+          NDN_THROW(Error("SignatureInfo cannot sign Interest"));
+        }
         lastElement = 9;
         break;
       }
@@ -659,7 +604,7 @@ Interest::setApplicationParameters(const Block& parameters)
   else {
     m_parameters = Block(tlv::ApplicationParameters, parameters);
   }
-  m_signable.reset();
+  m_sign_wire.reset();
   m_wire.reset();
   return *this;
 }
@@ -671,7 +616,7 @@ Interest::setApplicationParameters(const uint8_t* buffer, size_t bufferSize)
     NDN_THROW(std::invalid_argument("ApplicationParameters buffer cannot be nullptr"));
   }
   m_parameters = makeBinaryBlock(tlv::ApplicationParameters, buffer, bufferSize);
-  m_signable.reset();
+  m_sign_wire.reset();
   m_wire.reset();
   return *this;
 }
@@ -683,7 +628,7 @@ Interest::setApplicationParameters(ConstBufferPtr buffer)
     NDN_THROW(std::invalid_argument("ApplicationParameters buffer cannot be nullptr"));
   }
   m_parameters = Block(tlv::ApplicationParameters, std::move(buffer));
-  m_signable.reset();
+  m_sign_wire.reset();
   m_wire.reset();
   return *this;
 }
@@ -692,15 +637,31 @@ Interest&
 Interest::unsetApplicationParameters()
 {
   m_parameters = {};
-  m_signable.reset();
+  m_sign_wire.reset();
   m_wire.reset();
   return *this;
+}
+
+// ---- signature utilities ----
+//
+
+const Signature&
+getSignature() const
+{
+  if (!hasSignature()) {
+    NDN_THROW(Error("Interest has no Signature"));
+  }
+  return *m_signature;
 }
 
 Interest&
 Interest::setSignature(const Signature& signature)
 {
-  m_signable.reset();
+  if (!signature->getSignatureInfo().isInterestSignatureInfo()) {
+    NDN_THROW(Error("SignatureInfo cannot sign Interest"));
+  }
+
+  m_sign_wire.reset();
   m_wire.reset();
 
   if (m_parameters.empty()) {
@@ -716,6 +677,86 @@ Interest::setSignatureValue(const Block& value)
 {
   m_wire.reset();
   m_signature->setValue(value);
+  return *this;
+}
+
+ConstBufferPtr
+Interest::wireEncodeParametersSuffix() const
+{
+  EncodingBuffer encoder;
+
+  bool encodeParams = hasApplicationParameters();
+  bool encodeSigInfo = encodeParams && hasSignature();
+  bool encodeSigValue = encodeSigInfo && !excludeValue;
+
+  if (encodeSigValue) {
+    encoder.prependBlock(m_signature->getValue());
+  }
+
+  if (encodeSigInfo) {
+    encoder.prependBlock(m_signature->getInfo());
+  }
+
+  if (encodeParams) {
+    encoder.prependBlock(getApplicationParameters());
+  }
+
+  return encoder.getBuffer();
+}
+
+ConstBufferPtr
+Interest::wireEncodeSignable() const
+{
+  if (m_sign_wire != nullptr)
+    return m_sign_wire;
+
+  EncodingBuffer encoder;
+
+  if (!hasSignature()) {
+    NDN_THROW(Error("Requested Signed Interest wire format for unsigned Interest"));
+  }
+
+  if (!getSignature()) {
+    NDN_THROW(Error("Requested Signed Interest wire format, signature invalid"));
+  }
+
+  if (!hasApplicationParameters()) {
+    NDN_THROW(Error("Requested Signed Interest wire format, no Application Parameters"));
+  }
+
+  encoder.prependBlock(m_signature->getInfo());
+  encoder.prependBlock(getApplicationParameters());
+
+  for (auto& component: m_name) {
+    if (!component.isParametersSha256Digest()) {
+      encoder.prependBlock(component);
+    }
+  }
+
+  m_sign_wire = encoder.getBuffer();
+
+  return m_sign_wire;
+}
+
+Interest&
+resetParametersDigest()
+{
+  Name old_name(m_name);
+  m_name.clear();
+
+  for (auto& c: old_name) {
+    if (!c.isParametersSha256Digest()) {
+      m_name.append(c);
+    }
+  }
+
+  ConstBufferPtr suffix = wireEncodeParametersSuffix();
+  ConstBufferPtr digest = util::Sha256::computeDigest(suffix->get<uint8_t>(), suffix->size());
+
+  m_name.appendParametersSha256Digest(digest);
+
+  m_sign_wire.reset();
+  m_wire.reset();
   return *this;
 }
 
@@ -772,8 +813,8 @@ operator<<(std::ostream& os, const Interest& interest)
     delim = '&';
   }
   if (interest.hasSignature()) {
-    os << delim << "ndn." << interest.getSignature().getType()
-       << "=" << interest.getSignature().getValue();
+    os << delim << "ndn.Signature=(type: " << interest.getSignature().getType()
+       << ", value_length: " << interest.getSignature().getValue().value_size() << ")";
     delim = '&';
   }
 
