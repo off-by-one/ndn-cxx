@@ -43,18 +43,18 @@ BOOST_AUTO_TEST_CASE(Basic)
   BOOST_CHECK_EQUAL(i1.getName().get(-1).isParametersSha256Digest(), true);
   BOOST_CHECK_EQUAL(i1.hasSignature(), true);
 
-  time::system_clock::TimePoint timestamp = time::system_clock::now();
-  BOOST_CHECK_EQUAL(i1.getSignature().getSignatureInfo().getTime(), timestamp);
+  uint64_t timestamp = toUnixTimestamp(time::system_clock::now()).count();
+  BOOST_CHECK_EQUAL(i1.getSignature().getSignatureInfo().getTimestamp(), timestamp);
 
   Interest i2 = signer.makeCommandInterest("/hello/world/!", signingByIdentity("/test"));
   BOOST_CHECK_EQUAL(i2.getName().get(-1).isParametersSha256Digest(), true);
   BOOST_CHECK_EQUAL(i2.hasSignature(), true);
-  BOOST_CHECK_GE(i2.getSignature().getSignatureInfo().getTime(), i1.getSignature().getSignatureInfo().getTime());
+  BOOST_CHECK_GE(i2.getSignature().getSignatureInfo().getTimestamp(), i1.getSignature().getSignatureInfo().getTimestamp());
 
   advanceClocks(100_s);
 
   i2 = signer.makeCommandInterest("/hello/world/!");
-  BOOST_CHECK_GT(i2.getSignature().getSignatureInfo().getTime(), i1.getSignature().getSignatureInfo().getTime());
+  BOOST_CHECK_GT(i2.getSignature().getSignatureInfo().getTimestamp(), i1.getSignature().getSignatureInfo().getTimestamp());
 }
 
 BOOST_AUTO_TEST_SUITE_END() // TestCommandInterestSigner
