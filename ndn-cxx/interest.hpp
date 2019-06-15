@@ -28,6 +28,7 @@
 #include "ndn-cxx/selectors.hpp"
 #include "ndn-cxx/detail/packet-base.hpp"
 #include "ndn-cxx/util/time.hpp"
+#include "ndn-cxx/util/sha256.hpp"
 
 #include <boost/logic/tribool.hpp>
 
@@ -79,23 +80,6 @@ public:
    */
   const Block&
   wireEncode() const;
-
-  /** @brief Get a Buffer of the suffix
-   *
-   * Suffix currently includes ApplicationParameters, InterestSignatureInfo,
-   * and InterestSignatureValue, which can be excluded via the flag
-   */
-  ConstBufferPtr 
-  getSuffix(bool excludeValue = false) const;
-
-  /** @brief Get a @c Buffer of the signable portion
-   *  @throws Invalid Signed Interest format
-   *
-   *  Signable portions include non-paramater digest Name components,
-   *  ApplicationParameters, and InterestSingatureInfo
-   */
-  ConstBufferPtr
-  getSignable() const;
 
   /** @brief Decode from @p wire in NDN Packet Format v0.2 or v0.3.
    */
@@ -154,27 +138,7 @@ public: // element access
   setName(const Name& name)
   {
     m_name = name;
-    m_signable.reset();
-    m_wire.reset();
-    return *this;
-  }
-
-  Interest&
-  setSha256Digest(ConstBufferPtr digest)
-  {
-    Name old_name(m_name);
-
-    m_name.clear();
-
-    for (auto& c: old_name) {
-      if (!c.isParametersSha256Digest()) {
-        m_name.append(c);
-      }
-    }
-
-    m_name.appendParametersSha256Digest(digest);
-
-    m_signable.reset();
+    m_sign_wire.reset();
     m_wire.reset();
     return *this;
   }
@@ -374,14 +338,14 @@ public: // signature utilites
   /** @brief Get Signature
    */
   const Signature&
-  getSignature() const
-  {
-    return *m_signature;
-  }
+  getSignature() const;
 
   /** @brief Set Signature, implicitly marking this as a signed interest
-   *  Attempting to send signed Interest without a signature value is invalid
+   *  @throws Error SignatureInfo cannot sign Interest packet
    *  @return a reference to this Interest, to allow chaining
+   *
+   *  Attempting to send signed Interest without a signature value is invalid,
+   *  so setSignatureValue must be called before a wire encoding
    */
   Interest&
   setSignature(const Signature& signature);
@@ -399,6 +363,34 @@ public: // signature utilites
   {
     return m_signature.has_value();
   }
+
+  /** @brief Get a Buffer of the packet suffix
+   *
+   * Suffix currently includes ApplicationParameters, InterestSignatureInfo,
+   * and InterestSignatureValue
+   */
+  ConstBufferPtr
+  wireEncodeParametersSuffix() const;
+
+  /** @brief Get a Buffer of the sign_wire portion
+   *  @throws Error incomplete Signed Interest format
+   *
+   *  Signable portions include non-paramater digest Name components,
+   *  ApplicationParameters, and InterestSingatureInfo
+   *
+   *  This is cached, and can be safely dereferenced and used for signatures or
+   *  verification while the interest is not modified or deallocated
+   */
+  ConstBufferPtr
+  wireEncodeSignable() const;
+
+
+  /** @brief Set the ParametersSha256Digest component of the name
+   *
+   * This removes all other digest components.
+   */
+  Interest&
+  resetParametersDigest(ConstBufferPtr digest);
 
 public: // Selectors (deprecated)
   /** @brief Check if Interest has any selector present.
@@ -553,7 +545,7 @@ private:
   optional<Signature> m_signature;
 
   mutable Block m_wire;
-  mutable ConstBufferPtr m_signable;
+  mutable ConstBufferPtr m_sign_wire;
 
   friend bool operator==(const Interest& lhs, const Interest& rhs);
 };
