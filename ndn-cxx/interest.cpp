@@ -646,7 +646,7 @@ Interest::unsetApplicationParameters()
 //
 
 const Signature&
-getSignature() const
+Interest::getSignature() const
 {
   if (!hasSignature()) {
     NDN_THROW(Error("Interest has no Signature"));
@@ -657,7 +657,7 @@ getSignature() const
 Interest&
 Interest::setSignature(const Signature& signature)
 {
-  if (!signature->getSignatureInfo().isInterestSignatureInfo()) {
+  if (!signature.getSignatureInfo().isInterestSignatureInfo()) {
     NDN_THROW(Error("SignatureInfo cannot sign Interest"));
   }
 
@@ -686,14 +686,10 @@ Interest::wireEncodeParametersSuffix() const
   EncodingBuffer encoder;
 
   bool encodeParams = hasApplicationParameters();
-  bool encodeSigInfo = encodeParams && hasSignature();
-  bool encodeSigValue = encodeSigInfo && !excludeValue;
+  bool encodeSignature = encodeParams && hasSignature();
 
-  if (encodeSigValue) {
+  if (encodeSignature) {
     encoder.prependBlock(m_signature->getValue());
-  }
-
-  if (encodeSigInfo) {
     encoder.prependBlock(m_signature->getInfo());
   }
 
@@ -739,7 +735,7 @@ Interest::wireEncodeSignable() const
 }
 
 Interest&
-resetParametersDigest()
+Interest::recomputeParametersDigest()
 {
   Name old_name(m_name);
   m_name.clear();

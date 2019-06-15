@@ -384,13 +384,12 @@ public: // signature utilites
   ConstBufferPtr
   wireEncodeSignable() const;
 
-
   /** @brief Set the ParametersSha256Digest component of the name
    *
    * This removes all other digest components.
    */
   Interest&
-  resetParametersDigest(ConstBufferPtr digest);
+  recomputeParametersDigest();
 
 public: // Selectors (deprecated)
   /** @brief Check if Interest has any selector present.
