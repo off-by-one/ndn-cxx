@@ -184,7 +184,7 @@ BOOST_AUTO_TEST_CASE(SetterGetter)
   info.setTimestamp();
   BOOST_CHECK_EQUAL(info.hasTimestamp(), true);
   BOOST_CHECK_NO_THROW(info.getTimestamp());
-  BOOST_CHECK_GT(info.getTimestamp(), time);
+  BOOST_CHECK_GE(info.getTimestamp(), time);
 
   info.setTimestamp(time);
   BOOST_CHECK_EQUAL(info.hasTimestamp(), true);

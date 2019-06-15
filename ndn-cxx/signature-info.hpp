@@ -134,7 +134,9 @@ public: // field access
   unsetValidityPeriod();
 
   /** @brief Set timestamp for this signature (default to now)
-   *  Only sent in Interest signatures
+   *  @throws Cannot set this field for SignatureInfo
+   *
+   *  Only valid for InterestSignatureInfo
    */
   void
   setTimestamp(uint64_t timestamp = toUnixTimestamp(time::system_clock::now()).count());
@@ -164,7 +166,9 @@ public: // field access
   }
 
   /** @brief Set nonce for this signature (default to random)
-   *  Only sent in Interest signatures
+   *  @throws Cannot set this field for SignatureInfo
+   *
+   *  Only valid for InterestSignatureInfo
    */
   void
   setNonce(uint64_t nonce = random::generateWord64());
@@ -194,7 +198,9 @@ public: // field access
   }
 
   /** @brief Set sequence number for this signature
-   *  Only sent in Interest signatures
+   *  @throws Cannot set this field for SignatureInfo
+   *
+   *  Only valid for InterestSignatureInfo
    */
   void
   setSequenceNumber(uint64_t seq_num);
@@ -253,12 +259,16 @@ public: // field access
 
   /** @brief Set SignatureInfo TLV
    *  @throws Error must be SignatureInfo or InterestSignatureInfo
+   *  @throws Error cannot have InterestSignatureInfo fields in SignatureInfo
    */
   void
   setInfoType(int32_t tlv)
   {
     if (!validInfoType(tlv)) {
       NDN_THROW(Error("Must be either SignatureInfo or InterestSignatureInfo"));
+    }
+    if (tlv == tlv::SignatureInfo && (m_nonce || m_timestamp || m_seqNum)) {
+      NDN_THROW(Error("Cannot have InterestSignatureInfo fields in SignatureInfo"));
     }
     m_infoType = tlv;
   }
