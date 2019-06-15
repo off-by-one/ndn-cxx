@@ -67,12 +67,6 @@ SignatureInfo::wireEncode(EncodingImpl<TAG>& encoder) const
     NDN_THROW(Error("Cannot encode invalid SignatureInfo"));
   }
 
-  // SignatureInfo ::= SIGNATURE-INFO-TLV TLV-LENGTH
-  //                     SignatureType
-  //                     KeyLocator?
-  //                     ValidityPeriod? (if present, stored as first item of m_otherTlvs)
-  //                     other SignatureType-specific sub-elements*
-
   // InterestSignatureInfo ::=
   //        INTEREST-SIGNATURE-INFO-TLV TLV-LENGTH
   //          SignatureType
@@ -81,6 +75,12 @@ SignatureInfo::wireEncode(EncodingImpl<TAG>& encoder) const
   //          SignatureTime?
   //          SignatureSeqNum?
   //          other SignatureType-specific sub-elements*
+
+  // SignatureInfo ::= SIGNATURE-INFO-TLV TLV-LENGTH
+  //                     SignatureType
+  //                     KeyLocator?
+  //                     ValidityPeriod? (if present, stored as first item of m_otherTlvs)
+  //                     other SignatureType-specific sub-elements*
 
   size_t totalLength = 0;
 
@@ -93,8 +93,7 @@ SignatureInfo::wireEncode(EncodingImpl<TAG>& encoder) const
         totalLength += prependNonNegativeIntegerBlock(encoder, tlv::SignatureSeqNum, *m_seqNum);
       }
       if (m_timestamp) {
-        uint64_t time = toUnixTimestamp(*m_timestamp).count();
-        totalLength += prependNonNegativeIntegerBlock(encoder, tlv::SignatureTime, time);
+        totalLength += prependNonNegativeIntegerBlock(encoder, tlv::SignatureTime, *m_timestamp);
       }
       if (m_nonce) {
         totalLength += prependNonNegativeIntegerBlock(encoder, tlv::SignatureNonce, *m_nonce);
@@ -164,30 +163,28 @@ SignatureInfo::wireDecode(const Block& wire)
 
   // if this is an InterestSignatureInfo, attempt to read optional fields
   if (isInterestSignatureInfo()) {
+
     bool optionalFieldsFinished = false;
     for (; it != m_wire.elements_end(); ++it) {
+
       switch (it->type()) {
-        case tlv::SignatureNonce: {
-          uint32_t nonce = 0;
-          if (it->value_size() != sizeof(nonce)) {
-            NDN_THROW(Error("Nonce element is malformed"));
-          }
-          std::memcpy(&nonce, it->value(), sizeof(nonce));
-          m_nonce = nonce;
+        case tlv::SignatureNonce:
+          m_seqNum = readNonNegativeInteger(*it);
           break;
-        }
         case tlv::SignatureSeqNum:
           m_seqNum = readNonNegativeInteger(*it);
           break;
         case tlv::SignatureTime:
-          m_timestamp = time::fromUnixTimestamp(time::milliseconds(readNonNegativeInteger(*it)));
+          m_timestamp = readNonNegativeInteger(*it);
           break;
         default:
           optionalFieldsFinished = true;
           break;
       }
-      if (optionalFieldsFinished)
+
+      if (optionalFieldsFinished) {
         break;
+      }
     }
   }
 
@@ -257,21 +254,21 @@ SignatureInfo::unsetValidityPeriod()
 }
 
 void
-SignatureInfo::setTime(time::system_clock::TimePoint timestamp)
+SignatureInfo::setTimestamp(uint64_t timestamp)
 {
   m_wire.reset();
   m_timestamp = timestamp;
 }
 
 void
-SignatureInfo::unsetTime()
+SignatureInfo::unsetTimestamp()
 {
   m_wire.reset();
   m_timestamp = nullopt;
 }
 
 void
-SignatureInfo::setNonce(uint32_t nonce)
+SignatureInfo::setNonce(uint64_t nonce)
 {
   m_wire.reset();
   m_nonce = nonce;
@@ -334,9 +331,23 @@ operator<<(std::ostream& os, const SignatureInfo& info)
   if (info.getSignatureType() == -1)
     return os << "Invalid SignatureInfo";
 
+  if (info.isInterestSignatureInfo()) {
+    os << "Interest";
+  }
   os << static_cast<tlv::SignatureTypeValue>(info.getSignatureType());
   if (info.hasKeyLocator()) {
     os << " " << info.getKeyLocator();
+  }
+  if (info.isInterestSignatureInfo()) {
+    if (info.hasNonce()) {
+      os << " Nonce: " << info.getNonce();
+    }
+    if (info.hasTimestamp()) {
+      os << " Timestamp: " << info.getTimestamp();
+    }
+    if (info.hasSequenceNumber()) {
+      os << " Sequence Number: " << info.getSequenceNumber();
+    }
   }
   if (!info.m_otherTlvs.empty()) {
     os << " { ";

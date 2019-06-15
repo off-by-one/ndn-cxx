@@ -98,7 +98,7 @@ public:
   }
 
   /** @brief Set SignatureValue
-   *  @throws tlv::Error TLV-TYPE of supplied block is not SignatureValue, or the block does not have TLV-VALUE
+   *  @throws tlv::Error TLV-TYPE of supplied block is not matching SignatureValue, or the block does not have TLV-VALUE
    */
   void
   setValue(const Block& value);

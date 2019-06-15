@@ -140,8 +140,8 @@ BOOST_AUTO_TEST_CASE(SetterGetter)
   BOOST_CHECK_THROW(info.getKeyLocator(), SignatureInfo::Error);
   BOOST_CHECK_EQUAL(info.hasNonce(), false);
   BOOST_CHECK_THROW(info.getNonce(), SignatureInfo::Error);
-  BOOST_CHECK_EQUAL(info.hasTime(), false);
-  BOOST_CHECK_THROW(info.getTime(), SignatureInfo::Error);
+  BOOST_CHECK_EQUAL(info.hasTimestamp(), false);
+  BOOST_CHECK_THROW(info.getTimestamp(), SignatureInfo::Error);
   BOOST_CHECK_EQUAL(info.hasSequenceNumber(), false);
   BOOST_CHECK_THROW(info.getSequenceNumber(), SignatureInfo::Error);
 
@@ -154,7 +154,6 @@ BOOST_AUTO_TEST_CASE(SetterGetter)
   BOOST_CHECK_EQUAL(info.hasKeyLocator(), true);
   BOOST_CHECK_NO_THROW(info.getKeyLocator());
   BOOST_CHECK_EQUAL(info.getKeyLocator().getName(), Name("/test/key/locator"));
-
 
   const Block& encoded = info.wireEncode();
   Block sigInfoBlock(sigInfoRsa, sizeof(sigInfoRsa));
@@ -181,16 +180,16 @@ BOOST_AUTO_TEST_CASE(SetterGetter)
   BOOST_CHECK_NO_THROW(info.getNonce());
   BOOST_CHECK_EQUAL(info.getNonce(), nonce);
 
-  time::system_clock::TimePoint time = time::system_clock::now();
-  info.setTime();
-  BOOST_CHECK_EQUAL(info.hasTime(), true);
-  BOOST_CHECK_NO_THROW(info.getTime());
-  BOOST_CHECK_GT(info.getTime(), time);
+  uint64_t time = toUnixTimestamp(time::system_clock::now()).count();
+  info.setTimestamp();
+  BOOST_CHECK_EQUAL(info.hasTimestamp(), true);
+  BOOST_CHECK_NO_THROW(info.getTimestamp());
+  BOOST_CHECK_GT(info.getTimestamp(), time);
 
-  info.setTime(time);
-  BOOST_CHECK_EQUAL(info.hasTime(), true);
-  BOOST_CHECK_NO_THROW(info.getTime());
-  BOOST_CHECK_EQUAL(info.getTime(), time);
+  info.setTimestamp(time);
+  BOOST_CHECK_EQUAL(info.hasTimestamp(), true);
+  BOOST_CHECK_NO_THROW(info.getTimestamp());
+  BOOST_CHECK_EQUAL(info.getTimestamp(), time);
 
   uint64_t sequenceNumber = 25;
   info.setSequenceNumber(sequenceNumber);
@@ -198,9 +197,9 @@ BOOST_AUTO_TEST_CASE(SetterGetter)
   BOOST_CHECK_NO_THROW(info.getSequenceNumber());
   BOOST_CHECK_EQUAL(info.getSequenceNumber(), sequenceNumber);
 
-  info.unsetTime();
-  BOOST_CHECK_EQUAL(info.hasTime(), false);
-  BOOST_CHECK_THROW(info.getTime(), SignatureInfo::Error);
+  info.unsetTimestamp();
+  BOOST_CHECK_EQUAL(info.hasTimestamp(), false);
+  BOOST_CHECK_THROW(info.getTimestamp(), SignatureInfo::Error);
 
   info.unsetNonce();
   BOOST_CHECK_EQUAL(info.hasNonce(), false);

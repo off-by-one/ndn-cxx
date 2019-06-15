@@ -58,14 +58,15 @@ Signature::setInfo(const Block& info)
 void
 Signature::setValue(const Block& value)
 {
-  bool validDataSig = value.type() == tlv::SignatureValue && m_info.isDataSignatureInfo();
-  bool validInterestSig = value.type() == tlv::InterestSignatureValue && m_info.isInterestSignatureInfo();
+  bool isDataSignature = (value.type() == tlv::SignatureValue)
+    && m_info.isDataSignatureInfo();
+  bool isInterestSignature = (value.type() == tlv::InterestSignatureValue)
+    && m_info.isInterestSignatureInfo();
 
-  if (validDataSig || validInterestSig) {
+  if (isDataSignature || isInterestSignature) {
     m_value = value;
     return;
   }
-
   else {
     NDN_THROW(Error("SignatureValue", value.type()));
   }

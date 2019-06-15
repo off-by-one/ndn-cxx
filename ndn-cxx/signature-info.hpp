@@ -137,18 +137,18 @@ public: // field access
    *  Only sent in Interest signatures
    */
   void
-  setTime(time::system_clock::TimePoint timestamp = time::system_clock::now());
+  setTimestamp(uint64_t timestamp = toUnixTimestamp(time::system_clock::now()).count());
 
   /** @brief Remove timestamp for this signature
    */
   void
-  unsetTime();
+  unsetTimestamp();
 
   /** @brief Get timestamp for this signature
-   *  @throws When timestamp is not set
+   *  @throws Error timestamp is not set
    */
-  time::system_clock::TimePoint
-  getTime() const
+  uint64_t
+  getTimestamp() const
   {
     if (!m_timestamp)
       NDN_THROW(Error("Timestamp does not exist in SignatureInfo"));
@@ -158,7 +158,7 @@ public: // field access
   /** @brief Query whether this signature has a timestamp
    */
   bool
-  hasTime() const
+  hasTimestamp() const
   {
     return !!m_timestamp;
   }
@@ -167,7 +167,7 @@ public: // field access
    *  Only sent in Interest signatures
    */
   void
-  setNonce(uint32_t nonce = random::generateWord32());
+  setNonce(uint64_t nonce = random::generateWord64());
 
   /** @brief Remove nonce from this signature
    */
@@ -175,7 +175,7 @@ public: // field access
   unsetNonce();
 
   /** @brief Get nonce for this signature
-   *  @throws When nonce is not set
+   *  @throws Error nonce is not set
    */
   uint32_t
   getNonce() const
@@ -205,7 +205,7 @@ public: // field access
   unsetSequenceNumber();
 
   /** @brief Get sequence number for this signature
-   *  @throws When sequence number is not set
+   *  @throws Error sequence number is not set
    */
   uint64_t
   getSequenceNumber() const
@@ -252,12 +252,13 @@ public: // field access
   }
 
   /** @brief Set SignatureInfo TLV
+   *  @throws Error must be SignatureInfo or InterestSignatureInfo
    */
   void
   setInfoType(int32_t tlv)
   {
     if (!validInfoType(tlv)) {
-      NDN_THROW(Error("Info Type must be a valid SignatureInfo TLV"));
+      NDN_THROW(Error("Must be either SignatureInfo or InterestSignatureInfo"));
     }
     m_infoType = tlv;
   }
@@ -277,9 +278,9 @@ private:
   KeyLocator m_keyLocator;
   std::list<Block> m_otherTlvs;
 
-  optional<uint64_t> m_seqNum;
-  optional<time::system_clock::TimePoint> m_timestamp;
   optional<uint64_t> m_nonce;
+  optional<uint64_t> m_timestamp;
+  optional<uint64_t> m_seqNum;
 
   mutable Block m_wire;
 
