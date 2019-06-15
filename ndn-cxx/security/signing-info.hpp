@@ -219,38 +219,72 @@ public:
   }
 
   /**
-   * @brief Calculate Signature time in SigInfo, ignored for non-Interest
+   * @brief Set request to calculate timestamp at time of signature
    */
   SigningInfo&
-  genSignatureTime();
-
-  SigningInfo&
-  nogenSignatureTime();
+  setGenerateTimestamp();
 
   /**
-   * @brief Calculate Signature nonce in SigInfo, ignored for non-Interest
+   * @brief Unset request to calculate timestamp at time of signature
    */
   SigningInfo&
-  genSignatureNonce();
-
-  SigningInfo&
-  nogenSignatureNonce();
+  unsetGenerateTimestamp();
 
   /**
-   * @brief Calculate Signature sequence number in SigInfo, ignored for non-Interest
-   */
-  SigningInfo&
-  genSignatureSeqNum();
-
-  SigningInfo&
-  nogenSignatureSeqNum();
-
-  /**
-   * @brief Query whether this tlv should
-   * be added into the final signature info
+   * @brief Query whether to generate a timestamp
    */
   bool
-  generateField(uint32_t tlv) const;
+  generateTimestamp() const
+  {
+    return m_genTimestamp;
+  }
+
+  /**
+   * @brief Set request to calculate nonce at time of signature
+   */
+  SigningInfo&
+  setGenerateNonce();
+
+  /**
+   * @brief Unset request to calculate nonce at time of signature
+   */
+  SigningInfo&
+  unsetGenerateNonce();
+
+  /**
+   * @brief Query whether to generate a nonce
+   */
+  bool
+  generateNonce() const
+  {
+    return m_genNonce;
+  }
+
+  /**
+   * @brief Set request to calculate sequence number at time of signature
+   *
+   * Accepts an optional minimum 64-bit value to set the nonce to.
+   */
+  SigningInfo&
+  setGenerateSeqNum(uint64_t minimumValue = 0);
+
+  /**
+   * @brief Set request to calculate sequence number at time of signature
+   */
+  SigningInfo&
+  unsetGenerateSeqNum();
+
+  bool
+  generateSeqNum() const
+  {
+    return m_genSeqNum;
+  }
+
+  uint64_t
+  getMinSeqNum() const
+  {
+    return m_minSeqNum;
+  }
 
 public:
   static const Name&
@@ -281,7 +315,12 @@ private:
   Key m_key;
   DigestAlgorithm m_digestAlgorithm;
   SignatureInfo m_info;
-  std::set<uint32_t> m_generatedFields;
+
+  bool m_genSeqNum;
+  bool m_genTimestamp;
+  bool m_genNonce;
+
+  uint64_t m_minSeqNum;
 };
 
 std::ostream&
