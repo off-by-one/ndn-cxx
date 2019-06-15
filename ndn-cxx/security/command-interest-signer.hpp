@@ -28,42 +28,11 @@ namespace ndn {
 namespace security {
 
 /**
- * @brief Helper class to prepare command interest name
- *
- * The preparer adds timestamp and nonce name components to the supplied name.
- *
- * This class is primarily designed to be used as part of CommandInterestSigner, but can also
- * be using in an application that defines custom signing methods not support by the KeyChain
- * (such as HMAC-SHA1).
- *
- * @sa https://redmine.named-data.net/projects/ndn-cxx/wiki/CommandInterest
- */
-class CommandInterestPreparer : noncopyable
-{
-public:
-  CommandInterestPreparer();
-
-  /**
-   * @brief Prepare name of the CommandInterest
-   *
-   * This method appends the timestamp and nonce name components to the supplied name.
-   */
-  Name
-  prepareCommandInterestName(Name name);
-
-private:
-  time::milliseconds m_lastUsedTimestamp;
-};
-
-/**
  * @brief Helper class to create command interests
  *
- * The signer adds timestamp and nonce name components to the supplied name, creates an
- * Interest, and signs it with the KeyChain.
- *
- * @sa https://redmine.named-data.net/projects/ndn-cxx/wiki/CommandInterest
+ * The signer creates a signed interest with nonce and timestamp components set.
  */
-class CommandInterestSigner : private CommandInterestPreparer
+class CommandInterestSigner
 {
 public:
   explicit
@@ -72,17 +41,14 @@ public:
   /**
    * @brief Create CommandInterest
    *
-   * This method appends the timestamp and nonce name components to the supplied name, create
-   * an Interest object and signs it with the keychain.
+   * This method creates a v0.3 signed Interest with generated Nonce and Timestamp components.
    *
-   * Note that signature of the command interest covers only Name of the interest.  Therefore,
-   * other fields in the returned interest can be changed without breaking validity of the
-   * signature, because s
-   *
-   * @sa https://redmine.named-data.net/projects/ndn-cxx/wiki/CommandInterest
+   * @sa http://named-data.net/doc/NDN-packet-spec/current/signed-interest.html
+   * <old> @sa https://redmine.named-data.net/projects/ndn-cxx/wiki/CommandInterest
    */
   Interest
-  makeCommandInterest(const Name& name, const SigningInfo& params = KeyChain::getDefaultSigningInfo());
+  makeCommandInterest(const Name& name,
+                      const SigningInfo& params = SigningInfo().setGenerateTimestamp().setGenerateNonce());
 
 private:
   KeyChain& m_keyChain;

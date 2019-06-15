@@ -25,28 +25,6 @@
 namespace ndn {
 namespace security {
 
-CommandInterestPreparer::CommandInterestPreparer()
-  : m_lastUsedTimestamp(0)
-{
-}
-
-Name
-CommandInterestPreparer::prepareCommandInterestName(Name name)
-{
-  time::milliseconds timestamp = time::toUnixTimestamp(time::system_clock::now());
-  if (timestamp <= m_lastUsedTimestamp) {
-    timestamp = m_lastUsedTimestamp + 1_ms;
-  }
-  m_lastUsedTimestamp = timestamp;
-
-  name
-    .append(name::Component::fromNumber(timestamp.count()))
-    .append(name::Component::fromNumber(random::generateWord64())) // nonce
-    ;
-
-  return name;
-}
-
 CommandInterestSigner::CommandInterestSigner(KeyChain& keyChain)
   : m_keyChain(keyChain)
 {
@@ -57,7 +35,17 @@ CommandInterestSigner::makeCommandInterest(const Name& name, const SigningInfo& 
 {
   Interest commandInterest(name);
   commandInterest.setCanBePrefix(false);
-  m_keyChain.sign(commandInterest, params);
+
+  if (!(params.generateTimestamp() && params.generateNonce())) {
+    SigningInfo newParams = params;
+    newParams.setGenerateTimestamp();
+    newParams.setGenerateNonce();
+    m_keyChain.sign(commandInterest, newParams);
+  }
+  else {
+    m_keyChain.sign(commandInterest, params);
+  }
+
   return commandInterest;
 }
 
