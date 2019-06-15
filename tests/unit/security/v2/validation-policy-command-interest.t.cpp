@@ -317,7 +317,7 @@ public:
   {
     ValidationPolicyCommandInterest::Options options;
     options.gracePeriod = 15_s;
-    options.maxTimestampRecords = 3;
+    options.maxRecords = 3;
     return options;
   }
 };
@@ -368,7 +368,7 @@ public:
   {
     ValidationPolicyCommandInterest::Options options;
     options.gracePeriod = 15_s;
-    options.maxTimestampRecords = -1;
+    options.maxRecords = -1;
     return options;
   }
 };
@@ -401,7 +401,7 @@ public:
   {
     ValidationPolicyCommandInterest::Options options;
     options.gracePeriod = 15_s;
-    options.maxTimestampRecords = 0;
+    options.maxRecords = 0;
     return options;
   }
 };
@@ -425,7 +425,7 @@ public:
   {
     ValidationPolicyCommandInterest::Options options;
     options.gracePeriod = 400_s;
-    options.timestampRecordLifetime = 300_s;
+    options.recordLifetime = 300_s;
     return options;
   }
 };
@@ -457,7 +457,7 @@ public:
   {
     ValidationPolicyCommandInterest::Options options;
     options.gracePeriod = 15_s;
-    options.timestampRecordLifetime = time::seconds::zero();
+    options.recordLifetime = time::seconds::zero();
     return options;
   }
 };

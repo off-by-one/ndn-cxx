@@ -25,7 +25,6 @@
 #include "ndn-cxx/security/v2/validation-policy.hpp"
 
 #include <boost/multi_index_container.hpp>
-#include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/ordered_index.hpp>
 #include <boost/multi_index/sequenced_index.hpp>
 #include <boost/multi_index/key_extractors.hpp>
@@ -50,9 +49,7 @@ public:
     {
     }
 
-  public: // Timestamp options
-    bool checkTimestamp = true;
-
+  public:
     /** \brief tolerance of initial timestamp
      *
      *  A stop-and-wait command Interest is considered "initial" if the validator
@@ -83,7 +80,7 @@ public:
      *  Setting this option to 0 disables last timestamp records and causes
      *  every command Interest to be processed as initial.
      */
-    ssize_t maxTimestampRecords = 1000;
+    ssize_t maxRecords = 1000;
 
     /** \brief max lifetime of a last timestamp record
      *
@@ -92,21 +89,7 @@ public:
      *  Setting this option to 0 or negative makes last timestamp records expire immediately
      *  and causes every command Interest to be processed as initial.
      */
-    time::nanoseconds timestampRecordLifetime = 1_h;
-
-  public: // Sequence Number options
-    bool checkSequenceNumber = false;
-
-    ssize_t maxSequenceNumberRecords = 1000;
-
-    time::nanoseconds sequenceNumberRecordLifetime = 1_h;
-
-  public: // Nonce options
-    bool checkNonce = false;
-
-    ssize_t maxNonceRecords = 1000;
-
-    time::nanoseconds nonceRecordLifetime = 1_h;
+    time::nanoseconds recordLifetime = 1_h;
   };
 
   /** \brief constructor
@@ -127,109 +110,6 @@ protected:
   void
   checkPolicy(const Interest& interest, const shared_ptr<ValidationState>& state,
               const ValidationContinuation& continueValidation) override;
-
-private:
-  void
-  cleanupTimestamps();
-
-  bool
-  checkTimestamp(const shared_ptr<ValidationState>& state,
-                 const Name& keyName, uint64_t timestamp);
-
-  void
-  insertNewTimeRecord(const Name& keyName, uint64_t timestamp);
-
-  void
-  cleanupSequenceNumbers();
-
-  bool
-  checkSequenceNumber(const shared_ptr<ValidationState>& state,
-                      const Name& keyName, uint64_t sequenceNumber);
-
-  void
-  insertNewSequenceRecord(const Name& keyName, uint64_t sequenceNumber);
-
-  void
-  cleanupNonces();
-
-  bool
-  checkNonce(const shared_ptr<ValidationState>& state,
-                      const Name& keyName, uint64_t sequenceNumber);
-
-  void
-  insertNewNonceRecord(const Name& keyName, uint64_t sequenceNumber);
-
-private:
-  Options m_options;
-
-  struct LastTimestampRecord
-  {
-    Name keyName;
-    uint64_t timestamp;
-    time::steady_clock::TimePoint lastRefreshed;
-  };
-
-  using TimeContainer = boost::multi_index_container<
-    LastTimestampRecord,
-    boost::multi_index::indexed_by<
-      boost::multi_index::ordered_unique<
-        boost::multi_index::member<LastTimestampRecord, Name, &LastTimestampRecord::keyName>
-      >,
-      boost::multi_index::sequenced<>
-    >
-  >;
-  using TimeIndex = TimeContainer::nth_index<0>::type;
-  using TimeQueue = TimeContainer::nth_index<1>::type;
-
-  TimeContainer m_tcontainer;
-  TimeIndex& m_tindex;
-  TimeQueue& m_tqueue;
-
-  struct LastSequenceRecord
-  {
-    Name keyName;
-    uint64_t seq_num;
-    time::steady_clock::TimePoint lastRefreshed;
-  };
-
-  using SequenceContainer = boost::multi_index_container<
-    LastSequenceRecord,
-    boost::multi_index::indexed_by<
-      boost::multi_index::ordered_unique<
-        boost::multi_index::member<LastSequenceRecord, Name, &LastSequenceRecord::keyName>
-      >,
-      boost::multi_index::sequenced<>
-    >
-  >;
-  using SequenceIndex = SequenceContainer::nth_index<0>::type;
-  using SequenceQueue = SequenceContainer::nth_index<1>::type;
-
-  SequenceContainer m_scontainer;
-  SequenceIndex& m_sindex;
-  SequenceQueue& m_squeue;
-
-  struct NonceRecord
-  {
-    Name keyName;
-    uint64_t nonce;
-    time::steady_clock::TimePoint timeAdded;
-  };
-
-  using NonceContainer = boost::multi_index_container<
-    NonceRecord,
-    boost::multi_index::indexed_by<
-      boost::multi_index::hashed_non_unique<
-        boost::multi_index::member<NonceRecord, uint64_t, &NonceRecord::nonce>
-      >,
-      boost::multi_index::sequenced<>
-    >
-  >;
-  using NonceIndex = NonceContainer::nth_index<0>::type;
-  using NonceQueue = NonceContainer::nth_index<1>::type;
-
-  NonceContainer m_ncontainer;
-  NonceIndex& m_nindex;
-  NonceQueue& m_nqueue;
 };
 
 } // namespace v2

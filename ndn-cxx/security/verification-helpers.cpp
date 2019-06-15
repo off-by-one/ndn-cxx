@@ -88,8 +88,8 @@ parse(const Interest& interest)
 {
   try {
     return std::make_tuple(true,
-                           interest.getSignable()->get<uint8_t>(),
-                           interest.getSignable()->size(),
+                           interest.wireEncodeSignable()->get<uint8_t>(),
+                           interest.wireEncodeSignable()->size(),
                            interest.getSignature().getValue().value(),
                            interest.getSignature().getValue().value_size());
   }
