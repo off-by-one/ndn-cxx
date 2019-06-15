@@ -99,6 +99,11 @@ SignatureInfo::wireEncode(EncodingImpl<TAG>& encoder) const
         totalLength += prependNonNegativeIntegerBlock(encoder, tlv::SignatureNonce, *m_nonce);
       }
   }
+  else {
+    if (m_seqNum || m_timestamp || m_nonce) {
+      NDN_THROW(Error("SignatureInfo cannot have sequence number, timestamp, or nonce fields"));
+    }
+  }
 
   if (m_hasKeyLocator)
     totalLength += m_keyLocator.wireEncode(encoder);
@@ -256,6 +261,9 @@ SignatureInfo::unsetValidityPeriod()
 void
 SignatureInfo::setTimestamp(uint64_t timestamp)
 {
+  if (isDataSignatureInfo()) {
+    NDN_THROW(Error("Cannot set timestamp of SignatureInfo"));
+  }
   m_wire.reset();
   m_timestamp = timestamp;
 }
@@ -270,6 +278,9 @@ SignatureInfo::unsetTimestamp()
 void
 SignatureInfo::setNonce(uint64_t nonce)
 {
+  if (isDataSignatureInfo()) {
+    NDN_THROW(Error("Cannot set nonce of SignatureInfo"));
+  }
   m_wire.reset();
   m_nonce = nonce;
 }
@@ -284,6 +295,9 @@ SignatureInfo::unsetNonce()
 void
 SignatureInfo::setSequenceNumber(uint64_t seq_num)
 {
+  if (isDataSignatureInfo()) {
+    NDN_THROW(Error("Cannot set sequence number of SignatureInfo"));
+  }
   m_wire.reset();
   m_seqNum = seq_num;
 }
