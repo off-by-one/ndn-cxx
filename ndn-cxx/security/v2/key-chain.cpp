@@ -454,28 +454,28 @@ KeyChain::sign(Interest& interest, const SigningInfo& params)
 
   sigInfo.setInfoType(tlv::InterestSignatureInfo);
 
-  if (params.generateField(tlv::SignatureTime)) {
-    sigInfo.setTime();
+  if (params.generateTimestamp()) {
+    sigInfo.setTimestamp();
   }
-  if (params.generateField(tlv::SignatureNonce)) {
+  if (params.generateNonce()) {
     sigInfo.setNonce();
   }
-  if (params.generateField(tlv::SignatureSeqNum)) {
-    sigInfo.setSequenceNumber(++s_seqNum);
+  if (params.generateSeqNum()) {
+    if (params.getMinSeqNum() > s_seqNum) {
+      s_seqNum = params.getMinSeqNum();
+    }
+    sigInfo.setSequenceNumber(s_seqNum++);
   }
 
   interest.setSignature(Signature(sigInfo));
 
-  Block sigValue = sign(interest.getSignable()->get<uint8_t>(),
-                        interest.getSignable()->size(),
+  Block sigValue = sign(interest.wireEncodeSignable()->get<uint8_t>(),
+                        interest.wireEncodeSignable()->size(),
                         keyName,
                         params.getDigestAlgorithm(),
                         tlv::InterestSignatureValue);
   interest.setSignatureValue(sigValue);
-
-  ConstBufferPtr suffix = interest.getSuffix();
-  ConstBufferPtr digest = util::Sha256::computeDigest(suffix->get<uint8_t>(), suffix->size());
-  interest.setSha256Digest(digest);
+  interest.recomputeParametersDigest();
 }
 
 Block

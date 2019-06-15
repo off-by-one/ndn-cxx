@@ -52,7 +52,6 @@ SigningInfo::SigningInfo(SignerType signerType,
   , m_name(signerName)
   , m_digestAlgorithm(DigestAlgorithm::SHA256)
   , m_info(signatureInfo)
-  , m_generatedFields({tlv::SignatureTime})
 {
   BOOST_ASSERT(signerType == SIGNER_TYPE_NULL ||
                signerType == SIGNER_TYPE_ID ||
@@ -167,51 +166,46 @@ SigningInfo::setSignatureInfo(const SignatureInfo& signatureInfo)
 }
 
 SigningInfo&
-SigningInfo::genSignatureTime()
+SigningInfo::setGenerateTimestamp()
 {
-  m_generatedFields.insert(tlv::SignatureTime);
+  m_genTimestamp = true;
   return *this;
 }
 
 SigningInfo&
-SigningInfo::nogenSignatureTime()
+SigningInfo::unsetGenerateTimestamp()
 {
-  m_generatedFields.erase(tlv::SignatureTime);
+  m_genTimestamp = false;
   return *this;
 }
 
 SigningInfo&
-SigningInfo::genSignatureNonce()
+SigningInfo::setGenerateNonce()
 {
-  m_generatedFields.insert(tlv::SignatureNonce);
+  m_genNonce = true;
   return *this;
 }
 
 SigningInfo&
-SigningInfo::nogenSignatureNonce()
+SigningInfo::unsetGenerateNonce()
 {
-  m_generatedFields.erase(tlv::SignatureNonce);
+  m_genNonce = false;
   return *this;
 }
 
 SigningInfo&
-SigningInfo::genSignatureSeqNum()
+SigningInfo::setGenerateSeqNum(uint64_t minimumValue)
 {
-  m_generatedFields.insert(tlv::SignatureSeqNum);
+  m_genSeqNum = true;
+  m_minSeqNum = minimumValue;
   return *this;
 }
 
 SigningInfo&
-SigningInfo::nogenSignatureSeqNum()
+SigningInfo::unsetGenerateSeqNum()
 {
-  m_generatedFields.erase(tlv::SignatureSeqNum);
+  m_genSeqNum = false;
   return *this;
-}
-
-bool
-SigningInfo::generateField(uint32_t tlv) const
-{
-  return m_generatedFields.find(tlv) != m_generatedFields.end();
 }
 
 std::ostream&
