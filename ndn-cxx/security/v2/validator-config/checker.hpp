@@ -27,6 +27,12 @@
 #include "ndn-cxx/security/v2/validator-config/name-relation.hpp"
 #include "ndn-cxx/util/regex.hpp"
 
+#include <boost/multi_index_container.hpp>
+#include <boost/multi_index/hashed_index.hpp>
+#include <boost/multi_index/ordered_index.hpp>
+#include <boost/multi_index/sequenced_index.hpp>
+#include <boost/multi_index/key_extractors.hpp>
+
 namespace ndn {
 namespace security {
 namespace v2 {
@@ -78,6 +84,20 @@ private:
   static unique_ptr<Checker>
   createKeyLocatorNameChecker(const ConfigSection& configSection, const std::string& configFilename);
 
+  static unique_ptr<Checker>
+  createReplayChecker(const ConfigSection& configSection, const std::string& configFilename);
+
+  static unique_ptr<Checker>
+  createNonceChecker(const ConfigSection& configSection, const std::string& configFilename);
+
+  static unique_ptr<Checker>
+  createTimestampChecker(const ConfigSection& configSection, const std::string& configFilename);
+
+  static unique_ptr<Checker>
+  createSequenceNumberChecker(const ConfigSection& configSection, const std::string& configFilename);
+
+
+
 protected:
   virtual bool
   checkNames(const Name& pktName, const Name& klName, const shared_ptr<ValidationState>& state) = 0;
@@ -126,6 +146,85 @@ private:
   Regex m_hyperPRegex;
   Regex m_hyperKRegex;
   NameRelation m_hyperRelation;
+};
+
+class ReplayChecker : public Checker
+{
+public:
+  ReplayChecker(unique_ptr<Checker> nonceChecker,
+                unique_ptr<Checker> timestampChecker,
+                unique_ptr<Checker> sequenceNumberChecker);
+protected:
+  bool
+  checkNames(const Name& pktName, const Name& klName, const shared_ptr<ValidationState>& state) override;
+
+private:
+  unique_ptr<Checker> m_nonceChecker;
+  unique_ptr<Checker> m_timestampChecker;
+  unique_ptr<Checker> m_sequenceNumberChecker;
+};
+
+class NonceChecker : public Checker
+{
+public:
+  NonceChecker(size_t maxRecords, time::nanoseconds maxRecordLifetime);
+
+protected:
+  bool
+  checkNames(const Name& pktName, const Name& klName, const shared_ptr<ValidationState>& state) override;
+};
+
+class TimestampChecker : public Checker
+{
+public:
+  TimestampChecker(size_t maxRecords, time::nanoseconds maxRecordLifetime, time::nanoseconds gracePeriod);
+
+protected:
+  bool
+  checkNames(const Name& pktName, const Name& klName, const shared_ptr<ValidationState>& state) override;
+
+private:
+  void
+  insertRecord(Name key, uint64_t timestamp);
+  void
+  cleanupRecords();
+
+  size_t m_maxRecords;
+  time::nanoseconds m_maxRecordLifetime;
+  time::nanoseconds m_gracePeriod;
+
+  struct Record
+  {
+    Name keyName;
+    uint64_t timestamp;
+    time::steady_clock::TimePoint lastRefreshed;
+  };
+
+  using Container = boost::multi_index_container<
+    Record,
+    boost::multi_index::indexed_by<
+      boost::multi_index::ordered_unique<
+        boost::multi_index::member<Record, Name, &Record::keyName>
+      >,
+      boost::multi_index::sequenced<>
+    >
+  >;
+  using Index = Container::nth_index<0>::type;
+  using Queue = Container::nth_index<1>::type;
+
+  Container m_container;
+  Index& m_index;
+  Queue& m_queue;
+};
+
+class SequenceNumberChecker : public Checker
+{
+public:
+  SequenceNumberChecker(size_t maxRecords, time::nanoseconds maxRecordLifetime, uint64_t minSequenceNumber);
+
+protected:
+  bool
+  checkNames(const Name& pktName, const Name& klName, const shared_ptr<ValidationState>& state) override;
 };
 
 } // namespace validator_config
