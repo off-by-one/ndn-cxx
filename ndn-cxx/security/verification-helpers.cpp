@@ -86,18 +86,12 @@ parse(const Data& data)
 static std::tuple<bool, const uint8_t*, size_t, const uint8_t*, size_t>
 parse(const Interest& interest)
 {
-  const Name& interestName = interest.getName();
-
-  if (interestName.size() < signed_interest::MIN_SIZE)
-    return std::make_tuple(false, nullptr, 0, nullptr, 0);
-
   try {
-    const Block& nameBlock = interestName.wireEncode();
-
     return std::make_tuple(true,
-                           nameBlock.value(), nameBlock.value_size() - interestName[signed_interest::POS_SIG_VALUE].size(),
-                           interestName[signed_interest::POS_SIG_VALUE].blockFromValue().value(),
-                           interestName[signed_interest::POS_SIG_VALUE].blockFromValue().value_size());
+                           interest.wireEncodeSignable()->get<uint8_t>(),
+                           interest.wireEncodeSignable()->size(),
+                           interest.getSignature().getValue().value(),
+                           interest.getSignature().getValue().value_size());
   }
   catch (const tlv::Error&) {
     return std::make_tuple(false, nullptr, 0, nullptr, 0);

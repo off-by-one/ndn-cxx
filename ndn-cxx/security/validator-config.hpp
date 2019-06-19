@@ -23,26 +23,24 @@
 #define NDN_SECURITY_VALIDATOR_CONFIG_HPP
 
 #include "ndn-cxx/security/v2/validator.hpp"
-#include "ndn-cxx/security/v2/validation-policy-command-interest.hpp"
 #include "ndn-cxx/security/v2/validation-policy-config.hpp"
 
 namespace ndn {
 namespace security {
 
 /**
- * @brief Helper for validator that uses CommandInterest + Config policy and NetworkFetcher
+ * @brief Helper for validator that uses Config policy and NetworkFetcher
  */
 class ValidatorConfig : public v2::Validator
 {
 public:
   using v2::Validator::Validator;
-  using Options = v2::ValidationPolicyCommandInterest::Options;
 
   explicit
-  ValidatorConfig(std::unique_ptr<v2::CertificateFetcher> fetcher, const Options& options = Options());
+  ValidatorConfig(std::unique_ptr<v2::CertificateFetcher> fetcher);
 
   explicit
-  ValidatorConfig(Face& face, const Options& options = Options());
+  ValidatorConfig(Face& face);
 
 public: // helpers for ValidationPolicyConfig
   void

@@ -90,24 +90,7 @@ getKeyLocatorName(const Data& data, ValidationState& state)
 Name
 getKeyLocatorName(const Interest& interest, ValidationState& state)
 {
-  const Name& name = interest.getName();
-  if (name.size() < signed_interest::MIN_SIZE) {
-    state.fail({ValidationError::INVALID_KEY_LOCATOR,
-                "Invalid signed Interest: name too short"});
-    return Name();
-  }
-
-  SignatureInfo si;
-  try {
-    si.wireDecode(name.at(signed_interest::POS_SIG_INFO).blockFromValue());
-  }
-  catch (const tlv::Error& e) {
-    state.fail({ValidationError::Code::INVALID_KEY_LOCATOR,
-                "Invalid signed Interest: " + std::string(e.what())});
-    return Name();
-  }
-
-  return getKeyLocatorName(si, state);
+  return getKeyLocatorName(interest.getSignature().getSignatureInfo(), state);
 }
 
 } // namespace v2
