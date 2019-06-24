@@ -22,6 +22,7 @@
 #ifndef NDN_SIGNATURE_INFO_HPP
 #define NDN_SIGNATURE_INFO_HPP
 
+#include "ndn-cxx/util/random.hpp"
 #include "ndn-cxx/key-locator.hpp"
 #include "ndn-cxx/security/validity-period.hpp"
 
@@ -132,6 +133,102 @@ public: // field access
   void
   unsetValidityPeriod();
 
+  /** @brief Set timestamp for this signature (default to now)
+   *  @throws Cannot set this field for SignatureInfo
+   *
+   *  Only valid for InterestSignatureInfo
+   */
+  void
+  setTimestamp(uint64_t timestamp = toUnixTimestamp(time::system_clock::now()).count());
+
+  /** @brief Remove timestamp for this signature
+   */
+  void
+  unsetTimestamp();
+
+  /** @brief Get timestamp for this signature
+   *  @throws Error timestamp is not set
+   */
+  uint64_t
+  getTimestamp() const
+  {
+    if (!m_timestamp)
+      NDN_THROW(Error("Timestamp does not exist in SignatureInfo"));
+    return *m_timestamp;
+  }
+
+  /** @brief Query whether this signature has a timestamp
+   */
+  bool
+  hasTimestamp() const
+  {
+    return !!m_timestamp;
+  }
+
+  /** @brief Set nonce for this signature (default to random)
+   *  @throws Cannot set this field for SignatureInfo
+   *
+   *  Only valid for InterestSignatureInfo
+   */
+  void
+  setNonce(uint64_t nonce = random::generateWord64());
+
+  /** @brief Remove nonce from this signature
+   */
+  void
+  unsetNonce();
+
+  /** @brief Get nonce for this signature
+   *  @throws Error nonce is not set
+   */
+  uint64_t
+  getNonce() const
+  {
+    if (!m_nonce)
+      NDN_THROW(Error("Nonce does not exist in SignatureInfo"));
+    return *m_nonce;
+  }
+
+  /** @brief Query whether this signature has a nonce
+   */
+  bool
+  hasNonce() const
+  {
+    return !!m_nonce;
+  }
+
+  /** @brief Set sequence number for this signature
+   *  @throws Cannot set this field for SignatureInfo
+   *
+   *  Only valid for InterestSignatureInfo
+   */
+  void
+  setSequenceNumber(uint64_t seq_num);
+
+  /** @brief Remove sequence number from this signature
+   */
+  void
+  unsetSequenceNumber();
+
+  /** @brief Get sequence number for this signature
+   *  @throws Error sequence number is not set
+   */
+  uint64_t
+  getSequenceNumber() const
+  {
+    if (!m_seqNum)
+      NDN_THROW(Error("Sequence Number does not exist in SignatureInfo"));
+    return *m_seqNum;
+  }
+
+  /** @brief Query whether this signature has a sequence number
+   */
+  bool
+  hasSequenceNumber() const
+  {
+    return !!m_seqNum;
+  }
+
   /** @brief Get SignatureType-specific sub-element
    *  @param type TLV-TYPE of sub-element
    *  @throw Error sub-element of specified type does not exist
@@ -144,11 +241,56 @@ public: // field access
   void
   appendTypeSpecificTlv(const Block& element);
 
+  /** @brief Check if this is an Interest signature
+   */
+  bool
+  isInterestSignatureInfo() const
+  {
+    return m_infoType == tlv::InterestSignatureInfo;
+  }
+
+  /** @brief Check if this is a Data signature
+   */
+  bool
+  isDataSignatureInfo() const
+  {
+    return m_infoType == tlv::SignatureInfo;
+  }
+
+  /** @brief Set SignatureInfo TLV
+   *  @throws Error must be SignatureInfo or InterestSignatureInfo
+   *  @throws Error cannot have InterestSignatureInfo fields in SignatureInfo
+   */
+  void
+  setInfoType(int32_t tlv)
+  {
+    if (!validInfoType(tlv)) {
+      NDN_THROW(Error("Must be either SignatureInfo or InterestSignatureInfo"));
+    }
+    if (tlv == tlv::SignatureInfo && (m_nonce || m_timestamp || m_seqNum)) {
+      NDN_THROW(Error("Cannot have InterestSignatureInfo fields in SignatureInfo"));
+    }
+    m_infoType = tlv;
+  }
+
+  /** @brief Check whether a given TLV is a valid info type
+   */
+  static bool
+  validInfoType(int32_t tlv)
+  {
+    return tlv == tlv::SignatureInfo || tlv == tlv::InterestSignatureInfo;
+  }
+
 private:
   int32_t m_type;
+  int32_t m_infoType;
   bool m_hasKeyLocator;
   KeyLocator m_keyLocator;
   std::list<Block> m_otherTlvs;
+
+  optional<uint64_t> m_nonce;
+  optional<uint64_t> m_timestamp;
+  optional<uint64_t> m_seqNum;
 
   mutable Block m_wire;
 
