@@ -186,11 +186,6 @@ BOOST_AUTO_TEST_CASE(SetterGetter)
   BOOST_CHECK_NO_THROW(info.getTimestamp());
   BOOST_CHECK_GE(info.getTimestamp(), time);
 
-  info.setTimestamp(time);
-  BOOST_CHECK_EQUAL(info.hasTimestamp(), true);
-  BOOST_CHECK_NO_THROW(info.getTimestamp());
-  BOOST_CHECK_EQUAL(info.getTimestamp(), time);
-
   uint64_t sequenceNumber = 25;
   info.setSequenceNumber(sequenceNumber);
   BOOST_CHECK_EQUAL(info.hasSequenceNumber(), true);
@@ -302,6 +297,34 @@ BOOST_AUTO_TEST_CASE(OtherTlvsEncoding) // Bug #3914
           0x65, 0x05, 0x46, 0x69, 0x72, 0x73, 0x74, // 101 "First"
           0x66, 0x06, 0x53, 0x65, 0x63, 0x6f, 0x6e, 0x64, // 102 "Second"
           0x67, 0x05, 0x54, 0x68, 0x69, 0x72, 0x64 // 103 "Third"
+  };
+
+  SignatureInfo info3(Block(infoBytes, sizeof(infoBytes)));
+  BOOST_CHECK_EQUAL(info3, info1);
+  BOOST_CHECK_EQUAL_COLLECTIONS(infoBytes, infoBytes + sizeof(infoBytes),
+                                info1.wireEncode().begin(), info1.wireEncode().end());
+}
+
+BOOST_AUTO_TEST_CASE(InterestSignatureEncoding)
+{
+  SignatureInfo info1(tlv::SignatureSha256WithRsa);
+  info1.setInfoType(tlv::InterestSignatureInfo);
+  info1.setNonce(0x8117a00535642209);
+  info1.setSequenceNumber(0x05);
+  info1.setTimestamp(0x143dc178af8);
+
+  BOOST_CHECK_EQUAL(boost::lexical_cast<std::string>(info1), "InterestSignatureSha256WithRsa N: 9302079499588084233 T: 1390966967032ms SN: 5");
+
+  SignatureInfo info2;
+  info2.wireDecode(info1.wireEncode());
+  BOOST_CHECK_EQUAL(info1, info2);
+
+  const uint8_t infoBytes[] = {
+    0x2c, 0x1a, // InterestSignatureInfo
+          0x1b, 0x01, 0x01, // SignatureType=1
+          0x26, 0x08, 0x81, 0x17, 0xa0, 0x05, 0x35, 0x64, 0x22, 0x09, // SignatureNonce
+          0x28, 0x08, 0x00, 0x00, 0x01, 0x43, 0xdc, 0x17, 0x8a, 0xf8, // SignatureTime
+          0x2a, 0x01, 0x05, // SignatureSeqNum
   };
 
   SignatureInfo info3(Block(infoBytes, sizeof(infoBytes)));

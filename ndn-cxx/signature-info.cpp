@@ -34,23 +34,23 @@ static_assert(std::is_base_of<tlv::Error, SignatureInfo::Error>::value,
 
 SignatureInfo::SignatureInfo()
   : m_type(-1)
-  , m_hasKeyLocator(false)
   , m_infoType(tlv::SignatureInfo)
+  , m_hasKeyLocator(false)
 {
 }
 
 SignatureInfo::SignatureInfo(tlv::SignatureTypeValue type)
   : m_type(type)
-  , m_hasKeyLocator(false)
   , m_infoType(tlv::SignatureInfo)
+  , m_hasKeyLocator(false)
 {
 }
 
 SignatureInfo::SignatureInfo(tlv::SignatureTypeValue type, const KeyLocator& keyLocator)
   : m_type(type)
+  , m_infoType(tlv::SignatureInfo)
   , m_hasKeyLocator(true)
   , m_keyLocator(keyLocator)
-  , m_infoType(tlv::SignatureInfo)
 {
 }
 
@@ -174,13 +174,13 @@ SignatureInfo::wireDecode(const Block& wire)
 
       switch (it->type()) {
         case tlv::SignatureNonce:
-          m_seqNum = readNonNegativeInteger(*it);
-          break;
-        case tlv::SignatureSeqNum:
-          m_seqNum = readNonNegativeInteger(*it);
+          m_nonce = readNonNegativeInteger(*it);
           break;
         case tlv::SignatureTime:
           m_timestamp = readNonNegativeInteger(*it);
+          break;
+        case tlv::SignatureSeqNum:
+          m_seqNum = readNonNegativeInteger(*it);
           break;
         default:
           optionalFieldsFinished = true;
@@ -354,13 +354,13 @@ operator<<(std::ostream& os, const SignatureInfo& info)
   }
   if (info.isInterestSignatureInfo()) {
     if (info.hasNonce()) {
-      os << " Nonce: " << info.getNonce();
+      os << " N: " << info.getNonce();
     }
     if (info.hasTimestamp()) {
-      os << " Timestamp: " << info.getTimestamp();
+      os << " T: " << info.getTimestamp() << "ms";
     }
     if (info.hasSequenceNumber()) {
-      os << " Sequence Number: " << info.getSequenceNumber();
+      os << " SN: " << info.getSequenceNumber();
     }
   }
   if (!info.m_otherTlvs.empty()) {

@@ -181,7 +181,7 @@ public: // field access
   /** @brief Get nonce for this signature
    *  @throws Error nonce is not set
    */
-  uint32_t
+  uint64_t
   getNonce() const
   {
     if (!m_nonce)

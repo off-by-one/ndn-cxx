@@ -63,6 +63,26 @@ BOOST_AUTO_TEST_CASE(Equality)
   BOOST_CHECK_EQUAL(a != b, false);
 }
 
+BOOST_AUTO_TEST_CASE(IncorrectSignatureType)
+{
+  static const uint8_t interestSig[256] = {};
+  static const uint8_t dataSig[256] = {};
+  Block interestSigValue = makeBinaryBlock(tlv::InterestSignatureValue, interestSig, sizeof(interestSig));
+  Block dataSigValue = makeBinaryBlock(tlv::SignatureValue, dataSig, sizeof(dataSig));
+
+  SignatureInfo dataInfo;
+  SignatureInfo interestInfo;
+  interestInfo.setInfoType(tlv::InterestSignatureInfo);
+
+  Signature a(dataInfo);
+  BOOST_CHECK_THROW(a.setValue(interestSigValue), Signature::Error);
+  BOOST_CHECK_NO_THROW(a.setValue(dataSigValue));
+
+  Signature b(interestInfo);
+  BOOST_CHECK_THROW(b.setValue(dataSigValue), Signature::Error);
+  BOOST_CHECK_NO_THROW(b.setValue(interestSigValue));
+}
+
 BOOST_AUTO_TEST_SUITE_END() // TestSignature
 
 } // namespace tests
