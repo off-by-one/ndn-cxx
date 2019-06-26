@@ -24,6 +24,8 @@
 #include "ndn-cxx/security/verification-helpers.hpp"
 #include "ndn-cxx/security/pib/key.hpp"
 
+#include "ndn-cxx/signature-info.hpp"
+
 #include <boost/algorithm/string/predicate.hpp>
 
 namespace ndn {
@@ -118,12 +120,9 @@ HyperRelationChecker::checkNames(const Name& pktName, const Name& klName,
   return result;
 }
 
-ReplayChecker::ReplayChecker(unique_ptr<Checker> nonceChecker,
-                             unique_ptr<Checker> timestampChecker,
-                             unique_ptr<Checker> sequenceNumberChecker)
-  : m_nonceChecker(std::move(nonceChecker))
-  , m_timestampChecker(std::move(timestampChecker))
-  , m_sequenceNumberChecker(std::move(sequenceNumberChecker))
+ReplayChecker::ReplayChecker(size_t maxRecords, time::nanoseconds maxRecordLifetime)
+  : m_maxRecords(maxRecords)
+  , m_maxRecordLifetime(maxRecordLifetime)
 {
 }
 
@@ -131,35 +130,76 @@ bool
 ReplayChecker::checkNames(const Name& pktName, const Name& klName,
                           const shared_ptr<ValidationState>& state)
 {
-  if (m_nonceChecker && !m_nonceChecker->check(tlv::Data, pktName, klName, state)) {
-    return false;
-  }
-  if (m_timestampChecker && !m_timestampChecker->check(tlv::Data, pktName, klName, state)) {
-    return false;
-  }
-  if (m_sequenceNumberChecker && !m_sequenceNumberChecker->check(tlv::Data, pktName, klName, state)) {
-    return false;
-  }
+  auto interestState = dynamic_pointer_cast<InterestValidationState>(state);
 
-  return true;
+  BOOST_ASSERT(interestState != nullptr);
+
+  const SignatureInfo& info = interestState->getOriginalInterest()
+                                            .getSignature()
+                                            .getSignatureInfo();
+
+  return this->checkInfo(info, klName, interestState);
 }
 
-
 NonceChecker::NonceChecker(size_t maxRecords, time::nanoseconds maxRecordLifetime)
+  : ReplayChecker(maxRecords, maxRecordLifetime)
+  , m_index(m_container.get<0>())
+  , m_queue(m_container.get<1>())
 {
 }
 
 bool
-NonceChecker::checkNames(const Name& pktName, const Name& klName,
-                         const shared_ptr<ValidationState>& state)
+NonceChecker::checkInfo(const SignatureInfo& info, const Name& klName,
+                        const shared_ptr<InterestValidationState>& state)
 {
-  state->fail({ValidationError::POLICY_ERROR, "meh"});
-  return false;
+  cleanupRecords();
+
+  if (!info.hasNonce()) {
+    state->fail({ValidationError::POLICY_ERROR,
+                 "No nonce sent with key " + klName.toUri()});
+    return false;
+  }
+
+  uint64_t nonce = info.getNonce();
+  Index::iterator start;
+  Index::iterator end;
+
+  boost::tie(start, end) = m_index.equal_range(nonce);
+
+  for ( ; start != end ; start++) {
+    if (klName == start->keyName) {
+      state->fail({ValidationError::POLICY_ERROR,
+                   "Nonce is repeated for key " + klName.toUri()});
+      return false;
+    }
+  }
+
+  state->afterSuccess.connect([=] (const Interest&) { insertRecord(klName, nonce); });
+  return true;
+}
+
+void
+NonceChecker::cleanupRecords()
+{
+  auto expiring = time::steady_clock::now() - m_maxRecordLifetime;
+
+  while ((!m_queue.empty() && m_queue.front().timeAdded <= expiring) ||
+         (m_queue.size() > static_cast<size_t>(m_maxRecords))) {
+    m_queue.pop_front();
+  }
+}
+
+void
+NonceChecker::insertRecord(const Name& key, uint64_t record)
+{
+  // try to insert new record
+  auto now = time::steady_clock::now();
+  Record newRecord{key, record, now};
+  m_queue.push_back(newRecord);
 }
 
 TimestampChecker::TimestampChecker(size_t maxRecords, time::nanoseconds maxRecordLifetime, time::nanoseconds gracePeriod)
-  : m_maxRecords(maxRecords)
-  , m_maxRecordLifetime(maxRecordLifetime)
+  : ReplayChecker(maxRecords, maxRecordLifetime)
   , m_gracePeriod(gracePeriod)
   , m_index(m_container.get<0>())
   , m_queue(m_container.get<1>())
@@ -167,17 +207,19 @@ TimestampChecker::TimestampChecker(size_t maxRecords, time::nanoseconds maxRecor
 }
 
 bool
-TimestampChecker::checkNames(const Name& pktName, const Name& klName,
-                             const shared_ptr<ValidationState>& state)
+TimestampChecker::checkInfo(const SignatureInfo& info, const Name& klName,
+                            const shared_ptr<InterestValidationState>& state)
 {
   cleanupRecords();
-  auto interestState = dynamic_pointer_cast<InterestValidationState>(state);
+
+  if (!info.hasTimestamp()) {
+    state->fail({ValidationError::POLICY_ERROR,
+                 "No timestamp sent with key " + klName.toUri()});
+    return false;
+  }
 
   auto now = time::system_clock::now();
-  auto timestamp = interestState->getOriginalInterest()
-                                .getSignature()
-                                .getSignatureInfo()
-                                .getTimestamp();
+  auto timestamp = info.getTimestamp();
   auto timestampPoint = time::fromUnixTimestamp(time::milliseconds(timestamp));
   if (timestampPoint < now - m_gracePeriod || timestampPoint > now + m_gracePeriod) {
     state->fail({ValidationError::POLICY_ERROR,
@@ -194,19 +236,19 @@ TimestampChecker::checkNames(const Name& pktName, const Name& klName,
     }
   }
 
-  BOOST_ASSERT(interestState != nullptr);
-  interestState->afterSuccess.connect([=] (const Interest&) { insertRecord(klName, timestamp); });
+  state->afterSuccess.connect([=] (const Interest&) { insertRecord(klName, timestamp); });
+
   return true;
 }
 
 void
-TimestampChecker::insertRecord(Name key, uint64_t timestamp)
+TimestampChecker::insertRecord(const Name& keyName, uint64_t record)
 {
   // try to insert new record
   auto now = time::steady_clock::now();
   auto i = m_queue.end();
   bool isNew = false;
-  Record newRecord{key, timestamp, now};
+  Record newRecord{keyName, record, now};
   std::tie(i, isNew) = m_queue.push_back(newRecord);
 
   if (!isNew) {
@@ -225,22 +267,77 @@ TimestampChecker::cleanupRecords()
   auto expiring = time::steady_clock::now() - m_maxRecordLifetime;
 
   while ((!m_queue.empty() && m_queue.front().lastRefreshed <= expiring) ||
-         (m_maxRecords >= 0 &&
-          m_queue.size() > static_cast<size_t>(m_maxRecords))) {
+         (m_queue.size() > static_cast<size_t>(m_maxRecords))) {
     m_queue.pop_front();
   }
 }
 
-SequenceNumberChecker::SequenceNumberChecker(size_t maxRecords, time::nanoseconds maxRecordLifetime, uint64_t minSequenceNumber)
+SequenceNumberChecker::SequenceNumberChecker(size_t maxRecords,
+                                             time::nanoseconds maxRecordLifetime,
+                                             uint64_t minSequenceNumber)
+  : ReplayChecker(maxRecords, maxRecordLifetime)
+  , m_minSequenceNumber(minSequenceNumber)
+  , m_index(m_container.get<0>())
+  , m_queue(m_container.get<1>())
 {
 }
 
 bool
-SequenceNumberChecker::checkNames(const Name& pktName, const Name& klName,
-                                  const shared_ptr<ValidationState>& state)
+SequenceNumberChecker::checkInfo(const SignatureInfo& info, const Name& klName,
+                                 const shared_ptr<InterestValidationState>& state)
 {
-  state->fail({ValidationError::POLICY_ERROR, "meh"});
-  return false;
+  cleanupRecords();
+
+  if (!info.hasSequenceNumber()) {
+    state->fail({ValidationError::POLICY_ERROR,
+                 "No timestamp sent with key " + klName.toUri()});
+    return false;
+  }
+
+  uint64_t seq_num = info.getSequenceNumber();
+  auto it = m_index.find(klName);
+
+  if (it != m_index.end()) {
+    if (seq_num <= it->seq_num) {
+      state->fail({ValidationError::POLICY_ERROR,
+                   "Sequenec Number is reordered for key " + klName.toUri()});
+      return false;
+    }
+  }
+
+  state->afterSuccess.connect([=] (const Interest&) { insertRecord(klName, seq_num); });
+  return true;
+}
+
+void
+SequenceNumberChecker::cleanupRecords()
+{
+  auto expiring = time::steady_clock::now() - m_maxRecordLifetime;
+
+  while ((!m_queue.empty() && m_queue.front().lastRefreshed <= expiring) ||
+         (m_queue.size() > static_cast<size_t>(m_maxRecords))) {
+    m_queue.pop_front();
+  }
+}
+
+void
+SequenceNumberChecker::insertRecord(const Name& keyName, uint64_t record)
+{
+  // try to insert new record
+  auto now = time::steady_clock::now();
+  auto i = m_queue.end();
+  bool isNew = false;
+  Record newRecord{keyName, record, now};
+  std::tie(i, isNew) = m_queue.push_back(newRecord);
+
+  if (!isNew) {
+    BOOST_ASSERT(i->keyName == keyName);
+
+    // set lastRefreshed field, and move to queue tail
+    m_queue.erase(i);
+    isNew = m_queue.push_back(newRecord).second;
+    BOOST_VERIFY(isNew);
+  }
 }
 
 
@@ -261,8 +358,14 @@ Checker::create(const ConfigSection& configSection, const std::string& configFil
   else if (boost::iequals(type, "hierarchical")) {
     return createHierarchicalChecker(configSection, configFilename);
   }
-  else if (boost::iequals(type, "replay")) {
-    return createReplayChecker(configSection, configFilename);
+  else if (boost::iequals(type, "nonce")) {
+    return createNonceChecker(configSection, configFilename);
+  }
+  else if (boost::iequals(type, "timestamp")) {
+    return createTimestampChecker(configSection, configFilename);
+  }
+  else if (boost::iequals(type, "seq-num")) {
+    return createSequenceNumberChecker(configSection, configFilename);
   }
   else {
     NDN_THROW(Error("Unrecognized <checker.type>: " + type));
@@ -447,40 +550,6 @@ Checker::createKeyLocatorNameChecker(const ConfigSection& configSection,
 }
 
 unique_ptr<Checker>
-Checker::createReplayChecker(const ConfigSection& configSection,
-                             const std::string& configFilename)
-{
-  auto propertyIt = configSection.begin();
-  propertyIt++;
-
-  if (propertyIt == configSection.end())
-    NDN_THROW(Error("Unexpected end of <checker>"));
-
-  unique_ptr<Checker> nonceChecker;
-  unique_ptr<Checker> timestampChecker;
-  unique_ptr<Checker> sequenceNumberChecker;
-
-  for (; propertyIt != configSection.end() ; propertyIt++) {
-    if (boost::iequals(propertyIt->first, "nonce")) {
-      nonceChecker = createNonceChecker(propertyIt->second, configFilename);
-    }
-    else if (boost::iequals(propertyIt->first, "timestamp")) {
-      timestampChecker = createTimestampChecker(propertyIt->second, configFilename);
-    }
-    else if (boost::iequals(propertyIt->first, "seq-num")) {
-      sequenceNumberChecker = createSequenceNumberChecker(propertyIt->second, configFilename);
-    }
-    else {
-      NDN_THROW(Error("Expecting <checker.[nonce|timestamp|seq-num]>"));
-    }
-  }
-
-  return make_unique<ReplayChecker>(std::move(nonceChecker),
-                                    std::move(timestampChecker),
-                                    std::move(sequenceNumberChecker));
-}
-
-unique_ptr<Checker>
 Checker::createTimestampChecker(const ConfigSection& configSection,
                                 const std::string& configFilename)
 {
@@ -498,7 +567,7 @@ Checker::createTimestampChecker(const ConfigSection& configSection,
         gracePeriod = boost::lexical_cast<time::nanoseconds>(timeString);
       }
       catch (boost::bad_lexical_cast const &e) {
-        NDN_THROW(Error("Invalid <checker.timestamp.grace-period>: " + timeString));
+        NDN_THROW(Error("Invalid <checker.grace-period>: " + timeString));
       }
     }
     else if (boost::iequals(propertyIt->first, "max-lifetime")) {
@@ -507,7 +576,7 @@ Checker::createTimestampChecker(const ConfigSection& configSection,
         maxRecordLifetime = boost::lexical_cast<time::nanoseconds>(timeString);
       }
       catch (boost::bad_lexical_cast const &e) {
-        NDN_THROW(Error("Invalid <checker.timestamp.max-lifetime>: " + timeString));
+        NDN_THROW(Error("Invalid <checker.max-lifetime>: " + timeString));
       }
     }
     else if (boost::iequals(propertyIt->first, "max-records")) {
@@ -516,11 +585,11 @@ Checker::createTimestampChecker(const ConfigSection& configSection,
         maxRecords = boost::lexical_cast<size_t>(quantityString);
       }
       catch (boost::bad_lexical_cast const &e) {
-        NDN_THROW(Error("Invalid <checker.timestamp.max-records>: " + quantityString));
+        NDN_THROW(Error("Invalid <checker.max-records>: " + quantityString));
       }
     }
     else {
-      NDN_THROW(Error("Expecting <checker.timestamp.[max-lifetime|max-records|grace-period]>"));
+      NDN_THROW(Error("Expecting <checker.[max-lifetime|max-records|grace-period]>"));
     }
   }
 
@@ -544,7 +613,7 @@ Checker::createNonceChecker(const ConfigSection& configSection,
         maxRecordLifetime = boost::lexical_cast<time::nanoseconds>(timeString);
       }
       catch (boost::bad_lexical_cast const &e) {
-        NDN_THROW(Error("Invalid <checker.timestamp.max-lifetime>: " + timeString));
+        NDN_THROW(Error("Invalid <checker.max-lifetime>: " + timeString));
       }
     }
     else if (boost::iequals(propertyIt->first, "max-records")) {
@@ -553,11 +622,11 @@ Checker::createNonceChecker(const ConfigSection& configSection,
         maxRecords = boost::lexical_cast<size_t>(quantityString);
       }
       catch (boost::bad_lexical_cast const &e) {
-        NDN_THROW(Error("Invalid <checker.timestamp.max-records>: " + quantityString));
+        NDN_THROW(Error("Invalid <checker.max-records>: " + quantityString));
       }
     }
     else {
-      NDN_THROW(Error("Expecting <checker.timestamp.[max-lifetime|max-records|grace-period]>"));
+      NDN_THROW(Error("Expecting <checker.[max-lifetime|max-records|grace-period]>"));
     }
   }
 
@@ -582,7 +651,7 @@ Checker::createSequenceNumberChecker(const ConfigSection& configSection,
         minSequenceNumber = boost::lexical_cast<uint64_t>(numberString);
       }
       catch (boost::bad_lexical_cast const &e) {
-        NDN_THROW(Error("Invalid <checker.seq-num.min-value>: " + numberString));
+        NDN_THROW(Error("Invalid <checker.min-value>: " + numberString));
       }
     }
     else if (boost::iequals(propertyIt->first, "max-lifetime")) {
@@ -591,7 +660,7 @@ Checker::createSequenceNumberChecker(const ConfigSection& configSection,
         maxRecordLifetime = boost::lexical_cast<time::nanoseconds>(timeString);
       }
       catch (boost::bad_lexical_cast const &e) {
-        NDN_THROW(Error("Invalid <checker.seq-num.max-lifetime>: " + timeString));
+        NDN_THROW(Error("Invalid <checker.max-lifetime>: " + timeString));
       }
     }
     else if (boost::iequals(propertyIt->first, "max-records")) {
@@ -600,11 +669,11 @@ Checker::createSequenceNumberChecker(const ConfigSection& configSection,
         maxRecords = boost::lexical_cast<size_t>(quantityString);
       }
       catch (boost::bad_lexical_cast const &e) {
-        NDN_THROW(Error("Invalid <checker.seq-num.max-records>: " + quantityString));
+        NDN_THROW(Error("Invalid <checker.max-records>: " + quantityString));
       }
     }
     else {
-      NDN_THROW(Error("Expecting <checker.seq-num.[max-lifetime|max-records|min-value]>"));
+      NDN_THROW(Error("Expecting <checker.[max-lifetime|max-records|min-value]>"));
     }
   }
 

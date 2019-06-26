@@ -34,10 +34,14 @@
 #include <boost/multi_index/key_extractors.hpp>
 
 namespace ndn {
+
+class SignatureInfo;
+
 namespace security {
 namespace v2 {
 
 class ValidationState;
+class InterestValidationState;
 
 namespace validator_config {
 
@@ -151,46 +155,81 @@ private:
 class ReplayChecker : public Checker
 {
 public:
-  ReplayChecker(unique_ptr<Checker> nonceChecker,
-                unique_ptr<Checker> timestampChecker,
-                unique_ptr<Checker> sequenceNumberChecker);
+  ReplayChecker(size_t maxRecords, time::nanoseconds maxRecordLifetime);
+
 protected:
   bool
   checkNames(const Name& pktName, const Name& klName, const shared_ptr<ValidationState>& state) override;
 
-private:
-  unique_ptr<Checker> m_nonceChecker;
-  unique_ptr<Checker> m_timestampChecker;
-  unique_ptr<Checker> m_sequenceNumberChecker;
+  virtual bool
+  checkInfo(const SignatureInfo& info, const Name& klName, const shared_ptr<InterestValidationState>& state) = 0;
+
+  virtual void
+  cleanupRecords() = 0;
+
+  virtual void
+  insertRecord(const Name& key, uint64_t record) = 0;
+
+  size_t m_maxRecords;
+  time::nanoseconds m_maxRecordLifetime;
 };
 
-class NonceChecker : public Checker
+class NonceChecker : public ReplayChecker
 {
 public:
   NonceChecker(size_t maxRecords, time::nanoseconds maxRecordLifetime);
 
 protected:
   bool
-  checkNames(const Name& pktName, const Name& klName, const shared_ptr<ValidationState>& state) override;
+  checkInfo(const SignatureInfo& info, const Name& klName, const shared_ptr<InterestValidationState>& state) override;
+
+  void
+  cleanupRecords() override;
+
+  void
+  insertRecord(const Name& key, uint64_t record) override;
+
+private:
+  struct Record
+  {
+    Name keyName;
+    uint64_t nonce;
+    time::steady_clock::TimePoint timeAdded;
+  };
+
+  using Container = boost::multi_index_container<
+    Record,
+    boost::multi_index::indexed_by<
+      boost::multi_index::hashed_non_unique<
+        boost::multi_index::member<Record, uint64_t, &Record::nonce>
+      >,
+      boost::multi_index::sequenced<>
+    >
+  >;
+  using Index = Container::nth_index<0>::type;
+  using Queue = Container::nth_index<1>::type;
+
+  Container m_container;
+  Index& m_index;
+  Queue& m_queue;
 };
 
-class TimestampChecker : public Checker
+class TimestampChecker : public ReplayChecker
 {
 public:
   TimestampChecker(size_t maxRecords, time::nanoseconds maxRecordLifetime, time::nanoseconds gracePeriod);
 
 protected:
   bool
-  checkNames(const Name& pktName, const Name& klName, const shared_ptr<ValidationState>& state) override;
+  checkInfo(const SignatureInfo& info, const Name& klName, const shared_ptr<InterestValidationState>& state) override;
+
+  void
+  cleanupRecords() override;
+
+  void
+  insertRecord(const Name& key, uint64_t record) override;
 
 private:
-  void
-  insertRecord(Name key, uint64_t timestamp);
-  void
-  cleanupRecords();
-
-  size_t m_maxRecords;
-  time::nanoseconds m_maxRecordLifetime;
   time::nanoseconds m_gracePeriod;
 
   struct Record
@@ -217,14 +256,46 @@ private:
   Queue& m_queue;
 };
 
-class SequenceNumberChecker : public Checker
+class SequenceNumberChecker : public ReplayChecker
 {
 public:
   SequenceNumberChecker(size_t maxRecords, time::nanoseconds maxRecordLifetime, uint64_t minSequenceNumber);
 
 protected:
   bool
-  checkNames(const Name& pktName, const Name& klName, const shared_ptr<ValidationState>& state) override;
+  checkInfo(const SignatureInfo& info, const Name& klName, const shared_ptr<InterestValidationState>& state) override;
+
+  void
+  cleanupRecords() override;
+
+  void
+  insertRecord(const Name& key, uint64_t record) override;
+
+private:
+  uint64_t m_minSequenceNumber;
+
+  struct Record
+  {
+    Name keyName;
+    uint64_t seq_num;
+    time::steady_clock::TimePoint lastRefreshed;
+  };
+
+  using Container = boost::multi_index_container<
+    Record,
+    boost::multi_index::indexed_by<
+      boost::multi_index::ordered_unique<
+        boost::multi_index::member<Record, Name, &Record::keyName>
+      >,
+      boost::multi_index::sequenced<>
+    >
+  >;
+  using Index = Container::nth_index<0>::type;
+  using Queue = Container::nth_index<1>::type;
+
+  Container m_container;
+  Index& m_index;
+  Queue& m_queue;
 };
 
 } // namespace validator_config
