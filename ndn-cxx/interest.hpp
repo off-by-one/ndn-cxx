@@ -350,6 +350,12 @@ public: // signature utilites
   Interest&
   setSignature(const Signature& signature);
 
+  /** @brief Remove Signature from this Interest, implicitly marking it as unsigned
+   *  @return a reference to this Interest, to allow chaining
+   */
+  Interest&
+  unsetSignature();
+
   /** @brief Set SignatureValue
    *  @return a reference to this Interest, to allow chaining
    */

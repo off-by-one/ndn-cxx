@@ -673,6 +673,16 @@ Interest::setSignature(const Signature& signature)
 }
 
 Interest&
+Interest::unsetSignature()
+{
+  m_sign_wire.reset();
+  m_wire.reset();
+
+  m_signature = nullopt;
+  return *this;
+}
+
+Interest&
 Interest::setSignatureValue(const Block& value)
 {
   m_wire.reset();
@@ -683,16 +693,26 @@ Interest::setSignatureValue(const Block& value)
 ConstBufferPtr
 Interest::wireEncodeParametersSuffix() const
 {
-  EncodingBuffer encoder;
-
   bool encodeParams = hasApplicationParameters();
   bool encodeSignature = encodeParams && hasSignature();
+
+  size_t totalLength = 0;
+  EncodingEstimator estimator;
+
+  if (encodeSignature) {
+    totalLength += estimator.prependBlock(m_signature->getValue());
+    totalLength += estimator.prependBlock(m_signature->getInfo());
+  }
+  if (encodeParams) {
+    totalLength += estimator.prependBlock(getApplicationParameters());
+  }
+
+  EncodingBuffer encoder(totalLength, 0);
 
   if (encodeSignature) {
     encoder.prependBlock(m_signature->getValue());
     encoder.prependBlock(m_signature->getInfo());
   }
-
   if (encodeParams) {
     encoder.prependBlock(getApplicationParameters());
   }
@@ -706,8 +726,6 @@ Interest::wireEncodeSignable() const
   if (m_sign_wire != nullptr)
     return m_sign_wire;
 
-  EncodingBuffer encoder;
-
   if (!hasSignature()) {
     NDN_THROW(Error("Requested Signed Interest wire format for unsigned Interest"));
   }
@@ -720,17 +738,28 @@ Interest::wireEncodeSignable() const
     NDN_THROW(Error("Requested Signed Interest wire format, no Application Parameters"));
   }
 
+  size_t totalLength = 0;
+  EncodingEstimator estimator;
+
+  totalLength += estimator.prependBlock(m_signature->getInfo());
+  totalLength += estimator.prependBlock(getApplicationParameters());
+  for (auto& component: m_name | boost::adaptors::reversed) {
+    if (!component.isParametersSha256Digest()) {
+      totalLength += estimator.prependBlock(component);
+    }
+  }
+
+  EncodingBuffer encoder(totalLength, 0);
+
   encoder.prependBlock(m_signature->getInfo());
   encoder.prependBlock(getApplicationParameters());
-
-  for (auto& component: m_name) {
+  for (auto& component: m_name | boost::adaptors::reversed) {
     if (!component.isParametersSha256Digest()) {
       encoder.prependBlock(component);
     }
   }
 
   m_sign_wire = encoder.getBuffer();
-
   return m_sign_wire;
 }
 

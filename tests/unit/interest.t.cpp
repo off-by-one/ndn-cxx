@@ -23,6 +23,8 @@
 #include "ndn-cxx/data.hpp"
 #include "ndn-cxx/security/digest-sha256.hpp"
 #include "ndn-cxx/security/signature-sha256-with-rsa.hpp"
+#include "ndn-cxx/security/security-common.hpp"
+#include "ndn-cxx/security/verification-helpers.hpp"
 
 #include "tests/boost-test.hpp"
 #include "tests/make-interest-data.hpp"
@@ -31,6 +33,57 @@ namespace ndn {
 namespace tests {
 
 BOOST_AUTO_TEST_SUITE(TestInterest)
+
+const uint8_t SIGNED_WIRE[] = {
+  0x05, 0xf8, // Interest
+        0x07, 0x36, // Name
+              0x08, 0x05, 0x6c, 0x6f, 0x63, 0x61, 0x6c, // GenericNameComponent
+              0x08, 0x03, 0x6e, 0x64, 0x6e, // GenericNameComponent
+              0x08, 0x06, 0x70, 0x72, 0x65, 0x66, 0x69, 0x78, // GenericNameComponent
+              0x02, 0x20, // ParametersSha256Digest
+									0x44, 0xe9, 0x90, 0x02, 0x5c, 0xbf, 0x64, 0x68, 0xb8, 0x50,
+									0x66, 0x3d, 0xe3, 0x86, 0x4f, 0x51, 0x03, 0xcb, 0x88, 0x25,
+									0xca, 0xa9, 0xdb, 0xa5, 0x25, 0x7d, 0x6b, 0x2e, 0xe3, 0xfe,
+									0x0c, 0x0a,
+        0x21, 0x00, // CanBePrefix
+        0x12, 0x00, // MustBeFresh
+        0x1e, 0x0b, // ForwardingHint
+              0x1f, 0x09, // Delegation List
+                    0x1e, 0x02,
+                          0x3e, 0x15,
+                    0x07, 0x03,
+                          0x08, 0x01, 0x48,
+        0x0a, 0x04, // Nonce
+              0x4a, 0xcb, 0x1e, 0x4c,
+        0x0c, 0x02, // Interest Lifetime
+              0x76, 0xa1,
+        0x24, 0x04, // ApplicationParameters
+              0xc0, 0xc1, 0xc2, 0xc3,
+        0x2c, 0x1b, // InterestSignatureInfo
+            0x1b, 0x01, // SignatureType
+                0x01,
+            0x1c, 0x16, // KeyLocator
+                0x07, 0x14, // Name
+                    0x08, 0x04,
+                        0x74, 0x65, 0x73, 0x74,
+                    0x08, 0x03,
+                        0x6b, 0x65, 0x79,
+                    0x08, 0x07,
+                        0x6c, 0x6f, 0x63, 0x61, 0x74, 0x6f, 0x72,
+        0x2e, 0x80, // InterestSignatureValue
+						0x46, 0x9c, 0x27, 0x05, 0xae, 0x5b, 0x55, 0x05, 0xa1, 0xc1, 0xa2,
+						0x06, 0x9f, 0x70, 0xb2, 0xa6, 0x36, 0x09, 0x89, 0x34, 0x2c, 0xd6,
+						0xf4, 0xf1, 0xd7, 0x18, 0xd5, 0x53, 0xbf, 0x2f, 0xd7, 0xe1, 0x09,
+						0x61, 0xbd, 0xf4, 0xf6, 0x74, 0x96, 0x38, 0x04, 0xe7, 0x00, 0xc3,
+						0x1d, 0x02, 0x3c, 0xec, 0x79, 0xf1, 0xdc, 0x2e, 0x90, 0x9e, 0x80,
+						0x24, 0x38, 0x14, 0x92, 0x67, 0x16, 0x7f, 0xdf, 0x7b, 0xe3, 0xd5,
+						0xb3, 0xc9, 0x46, 0x53, 0xf2, 0xc7, 0xf2, 0xfc, 0x66, 0x94, 0xc8,
+						0x34, 0xed, 0xdb, 0x85, 0x97, 0x59, 0x7a, 0x4a, 0x55, 0x2a, 0xae,
+						0x87, 0x15, 0x2e, 0xa3, 0x45, 0x01, 0x32, 0xbb, 0xac, 0xe8, 0x5b,
+						0x84, 0xa3, 0x06, 0xa7, 0xf9, 0x99, 0x98, 0x0d, 0x30, 0x1a, 0x43,
+						0x8b, 0x56, 0x59, 0x8e, 0xbc, 0x67, 0xdd, 0xa8, 0x2a, 0xf6, 0x52,
+						0xaf, 0xb9, 0xb9, 0xe0, 0x20, 0x70, 0xfd,
+};
 
 // ---- constructor, encode, decode ----
 
@@ -156,26 +209,21 @@ BOOST_AUTO_TEST_CASE(EncodeDecode03Basic)
 
 BOOST_AUTO_TEST_CASE(EncodeDecode03Full)
 {
-  const uint8_t WIRE[] = {
-    0x05, 0x37, // Interest
-          0x07, 0x14, // Name
-                0x08, 0x05, 0x6c, 0x6f, 0x63, 0x61, 0x6c, // GenericNameComponent
-                0x08, 0x03, 0x6e, 0x64, 0x6e, // GenericNameComponent
-                0x08, 0x06, 0x70, 0x72, 0x65, 0x66, 0x69, 0x78, // GenericNameComponent
-          0x21, 0x00, // CanBePrefix
-          0x12, 0x00, // MustBeFresh
-          0x1e, 0x0b, // ForwardingHint
-                0x1f, 0x09, // Delegation List
-                      0x1e, 0x02,
-                            0x3e, 0x15,
-                      0x07, 0x03,
-                            0x08, 0x01, 0x48,
-          0x0a, 0x04, // Nonce
-                0x4a, 0xcb, 0x1e, 0x4c,
-          0x0c, 0x02, // Interest Lifetime
-                0x76, 0xa1,
-          0x24, 0x04, // ApplicationParameters
-                0xc0, 0xc1, 0xc2, 0xc3};
+  Signature sig("2C1B 1B0101 1C16071408047465737408036B657908076C6F6361746F72"_block,
+                "2E80 469C2705AE5B5505A1C1A2069F70B2A6360989342CD6F4F1D718D55"
+                "3BF2FD7E10961BDF4F674963804E700C31D023CEC79F1DC2E909E8024381"
+                "49267167FDF7BE3D5B3C94653F2C7F2FC6694C834EDDB8597597A4A552AA"
+                "E87152EA3450132BBACE85B84A306A7F999980D301A438B56598EBC67DDA"
+                "82AF652AFB9B9E02070FD"_block);
+
+  SignatureInfo info;
+  info.setSignatureType(tlv::SignatureSha256WithRsa);
+  info.setInfoType(tlv::InterestSignatureInfo);
+
+  KeyLocator keyLocator;
+  keyLocator.setName("/test/key/locator");
+  info.setKeyLocator(keyLocator);
+
   Interest i1;
   i1.setName("/local/ndn/prefix");
   i1.setMustBeFresh(true);
@@ -186,11 +234,15 @@ BOOST_AUTO_TEST_CASE(EncodeDecode03Full)
   i1.setApplicationParameters("2404C0C1C2C3"_block);
   i1.setMinSuffixComponents(1); // v0.2-only elements will not be encoded
   i1.setExclude(Exclude().excludeAfter(name::Component("J"))); // v0.2-only elements will not be encoded
+  i1.setSignature(sig);
+  i1.recomputeParametersDigest();
   Block wire1 = i1.wireEncode();
-  BOOST_CHECK_EQUAL_COLLECTIONS(wire1.begin(), wire1.end(), WIRE, WIRE + sizeof(WIRE));
+  BOOST_CHECK_EQUAL_COLLECTIONS(wire1.begin(), wire1.end(), SIGNED_WIRE, SIGNED_WIRE + sizeof(SIGNED_WIRE));
 
   Interest i2(wire1);
-  BOOST_CHECK_EQUAL(i2.getName(), "/local/ndn/prefix");
+  BOOST_CHECK_EQUAL(i2.getSignature().getSignatureInfo(), sig.getSignatureInfo());
+  BOOST_CHECK_EQUAL(i2.getSignature().getValue(), sig.getValue());
+  BOOST_CHECK_EQUAL(i2.getName().getPrefix(-1), "/local/ndn/prefix");
   BOOST_CHECK_EQUAL(i2.getCanBePrefix(), true);
   BOOST_CHECK_EQUAL(i2.getMustBeFresh(), true);
   BOOST_CHECK_EQUAL(i2.getForwardingHint(), DelegationList({{15893, "/H"}}));
@@ -214,6 +266,7 @@ protected:
     i.setInterestLifetime(18554_ms);
     i.setPublisherPublicKeyLocator(Name("/K"));
     i.setApplicationParameters("2404A0A1A2A3"_block);
+    i.setSignature(Signature("2C03 1B0101"_block));
   }
 
 protected:
@@ -562,10 +615,27 @@ BOOST_AUTO_TEST_CASE(SetApplicationParameters)
   BOOST_CHECK_THROW(i.setApplicationParameters(nullptr), std::invalid_argument);
 }
 
+BOOST_AUTO_TEST_CASE(SetSignature)
+{
+  Interest i;
+
+  BOOST_CHECK_THROW(i.setSignature(Signature("16031B0100"_block)), Interest::Error);
+  BOOST_CHECK(!i.hasSignature());
+
+  BOOST_CHECK_NO_THROW(i.setSignature(Signature("2C031B0100"_block)));
+  BOOST_CHECK(i.hasSignature());
+}
+
 // ---- operators ----
 
 BOOST_AUTO_TEST_CASE(Equality)
 {
+  Signature sig("2C1B 1B0101 1C16071408047465737408036B657908076C6F6361746F72"_block,
+                "2E80 469C2705AE5B5505A1C1A2069F70B2A6360989342CD6F4F1D718D55"
+                "3BF2FD7E10961BDF4F674963804E700C31D023CEC79F1DC2E909E8024381"
+                "49267167FDF7BE3D5B3C94653F2C7F2FC6694C834EDDB8597597A4A552AA"
+                "E87152EA3450132BBACE85B84A306A7F999980D301A438B56598EBC67DDA"
+                "82AF652AFB9B9E02070FD"_block);
   Interest a;
   Interest b;
 
@@ -633,7 +703,104 @@ BOOST_AUTO_TEST_CASE(Equality)
   b.setApplicationParameters("2404C0C1C2C3"_block);
   BOOST_CHECK_EQUAL(a == b, true);
   BOOST_CHECK_EQUAL(a != b, false);
+
+  // compare SignatureInfo
+	a.setSignature(sig);
+  BOOST_CHECK_EQUAL(a == b, false);
+  BOOST_CHECK_EQUAL(a != b, true);
+
+	b.setSignature(sig);
+  BOOST_CHECK_EQUAL(a == b, true);
+  BOOST_CHECK_EQUAL(a != b, false);
 }
+
+// ---- signature helpers ----
+BOOST_AUTO_TEST_CASE(ParametersDigest)
+{
+  Interest i(Block(SIGNED_WIRE, sizeof(SIGNED_WIRE)));
+  ConstBufferPtr suffix = i.wireEncodeParametersSuffix();
+  const name::Component& digestComponent = i.getName().get(-1);
+  const Block& digestBlock = digestComponent.wireEncode();
+  BOOST_CHECK(security::verifyDigest(suffix->get<uint8_t>(),
+                                     suffix->size(),
+                                     digestBlock.value(),
+                                     digestBlock.value_size(),
+                                     DigestAlgorithm::SHA256));
+}
+
+BOOST_AUTO_TEST_CASE(SuffixWireEncoding)
+{
+  const uint8_t SUFFIX_WIRE[] = {
+    0x24, 0x04, // ApplicationParameters
+          0xc0, 0xc1, 0xc2, 0xc3,
+    0x2c, 0x1b, // InterestSignatureInfo
+        0x1b, 0x01, // SignatureType
+            0x01,
+        0x1c, 0x16, // KeyLocator
+            0x07, 0x14, // Name
+                0x08, 0x04,
+                    0x74, 0x65, 0x73, 0x74,
+                0x08, 0x03,
+                    0x6b, 0x65, 0x79,
+                0x08, 0x07,
+                    0x6c, 0x6f, 0x63, 0x61, 0x74, 0x6f, 0x72,
+    0x2e, 0x80, // InterestSignatureValue
+				0x46, 0x9c, 0x27, 0x05, 0xae, 0x5b, 0x55, 0x05, 0xa1, 0xc1, 0xa2,
+				0x06, 0x9f, 0x70, 0xb2, 0xa6, 0x36, 0x09, 0x89, 0x34, 0x2c, 0xd6,
+				0xf4, 0xf1, 0xd7, 0x18, 0xd5, 0x53, 0xbf, 0x2f, 0xd7, 0xe1, 0x09,
+				0x61, 0xbd, 0xf4, 0xf6, 0x74, 0x96, 0x38, 0x04, 0xe7, 0x00, 0xc3,
+				0x1d, 0x02, 0x3c, 0xec, 0x79, 0xf1, 0xdc, 0x2e, 0x90, 0x9e, 0x80,
+				0x24, 0x38, 0x14, 0x92, 0x67, 0x16, 0x7f, 0xdf, 0x7b, 0xe3, 0xd5,
+				0xb3, 0xc9, 0x46, 0x53, 0xf2, 0xc7, 0xf2, 0xfc, 0x66, 0x94, 0xc8,
+				0x34, 0xed, 0xdb, 0x85, 0x97, 0x59, 0x7a, 0x4a, 0x55, 0x2a, 0xae,
+				0x87, 0x15, 0x2e, 0xa3, 0x45, 0x01, 0x32, 0xbb, 0xac, 0xe8, 0x5b,
+				0x84, 0xa3, 0x06, 0xa7, 0xf9, 0x99, 0x98, 0x0d, 0x30, 0x1a, 0x43,
+				0x8b, 0x56, 0x59, 0x8e, 0xbc, 0x67, 0xdd, 0xa8, 0x2a, 0xf6, 0x52,
+				0xaf, 0xb9, 0xb9, 0xe0, 0x20, 0x70, 0xfd,
+  };
+
+  Interest i(Block(SIGNED_WIRE, sizeof(SIGNED_WIRE)));
+  ConstBufferPtr suffix = i.wireEncodeParametersSuffix();
+  BOOST_CHECK_EQUAL_COLLECTIONS(suffix->begin(), suffix->end(),
+                                SUFFIX_WIRE    , SUFFIX_WIRE + sizeof(SUFFIX_WIRE));
+}
+
+BOOST_AUTO_TEST_CASE(SignableWireEncoding)
+{
+  const uint8_t SIGNABLE_WIRE[] = {
+    0x08, 0x05, 0x6c, 0x6f, 0x63, 0x61, 0x6c, // GenericNameComponent
+    0x08, 0x03, 0x6e, 0x64, 0x6e, // GenericNameComponent
+    0x08, 0x06, 0x70, 0x72, 0x65, 0x66, 0x69, 0x78, // GenericNameComponent
+    0x24, 0x04, // ApplicationParameters
+          0xc0, 0xc1, 0xc2, 0xc3,
+    0x2c, 0x1b, // InterestSignatureInfo
+        0x1b, 0x01, // SignatureType
+            0x01,
+        0x1c, 0x16, // KeyLocator
+            0x07, 0x14, // Name
+                0x08, 0x04,
+                    0x74, 0x65, 0x73, 0x74,
+                0x08, 0x03,
+                    0x6b, 0x65, 0x79,
+                0x08, 0x07,
+                    0x6c, 0x6f, 0x63, 0x61, 0x74, 0x6f, 0x72,
+  };
+
+  Interest i(Block(SIGNED_WIRE, sizeof(SIGNED_WIRE)));
+  ConstBufferPtr signable = i.wireEncodeSignable();
+  BOOST_CHECK_EQUAL_COLLECTIONS(signable->begin(), signable->end(),
+                                SIGNABLE_WIRE    , SIGNABLE_WIRE + sizeof(SIGNABLE_WIRE));
+
+	i.unsetApplicationParameters();
+	BOOST_CHECK_THROW(i.wireEncodeSignable(), Interest::Error);
+
+	i.setApplicationParameters(Block());
+	BOOST_CHECK_NO_THROW(i.wireEncodeSignable());
+
+	i.unsetSignature();
+	BOOST_CHECK_THROW(i.wireEncodeSignable(), Interest::Error);
+}
+
 
 BOOST_AUTO_TEST_SUITE_END() // TestInterest
 
