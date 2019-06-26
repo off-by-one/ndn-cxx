@@ -34,8 +34,6 @@ namespace validator_config {
 /**
  * @brief The validator which can be set up via a configuration file.
  *
- * @note For command Interest validation, this policy must be combined with
- *       @p ValidationPolicyCommandInterest, in order to guard against replay attacks.
  * @note This policy does not support inner policies (a sole policy or a terminal inner policy)
  * @sa https://named-data.net/doc/ndn-cxx/current/tutorials/security-validator-config.html
  */

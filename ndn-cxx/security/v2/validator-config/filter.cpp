@@ -39,10 +39,7 @@ Filter::match(uint32_t pktType, const Name& pktName)
   BOOST_ASSERT(pktType == tlv::Interest || pktType == tlv::Data);
 
   if (pktType == tlv::Interest) {
-    if (pktName.size() < signed_interest::MIN_SIZE)
-      return false;
-
-    return matchName(pktName.getPrefix(-signed_interest::MIN_SIZE));
+    return matchName(pktName.getPrefix(-1));
   }
   else {
     return matchName(pktName);

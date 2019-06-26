@@ -94,8 +94,8 @@ BOOST_AUTO_TEST_CASE(Success)
 
   FaceCreateCommand command;
   BOOST_CHECK(Name("/localhost/nfd/faces/create").isPrefixOf(requestInterest.getName()));
-  // 9 components: ndn:/localhost/nfd/faces/create/<parameters>/<signed Interest x4>
-  BOOST_REQUIRE_EQUAL(requestInterest.getName().size(), 9);
+  // 9 components: ndn:/localhost/nfd/faces/create/<parameters>/<digest>
+  BOOST_REQUIRE_EQUAL(requestInterest.getName().size(), 6);
   ControlParameters request;
   // 4th component: <parameters>
   BOOST_REQUIRE_NO_THROW(request.wireDecode(requestInterest.getName().at(4).blockFromValue()));

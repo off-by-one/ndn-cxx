@@ -26,32 +26,6 @@
 
 namespace ndn {
 
-namespace signed_interest {
-
-const ssize_t POS_SIG_VALUE = -1;
-const ssize_t POS_SIG_INFO = -2;
-
-/** \brief minimal number of components for Signed Interest
- *  \sa https://redmine.named-data.net/projects/ndn-cxx/wiki/SignedInterest
- */
-const size_t MIN_SIZE = 2;
-
-} // namespace signed_interest
-
-namespace command_interest {
-
-using signed_interest::POS_SIG_VALUE;
-using signed_interest::POS_SIG_INFO;
-const ssize_t POS_RANDOM_VAL = -3;
-const ssize_t POS_TIMESTAMP = -4;
-
-/** \brief minimal number of components for Command Interest
- *  \sa https://redmine.named-data.net/projects/ndn-cxx/wiki/CommandInterest
- */
-const size_t MIN_SIZE = 4;
-
-} // namespace command_interest
-
 /**
  * @brief The type of KeyId component in a key name.
  */

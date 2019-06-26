@@ -128,26 +128,17 @@ BOOST_AUTO_TEST_CASE(FromSection)
 BOOST_AUTO_TEST_SUITE_END() // Loads
 
 
-BOOST_FIXTURE_TEST_CASE(ValidateCommandInterestWithDigestSha256, ValidatorConfigFixture) // Bug 4635
+BOOST_FIXTURE_TEST_CASE(ValidateSignedInterestWithDigestSha256, ValidatorConfigFixture) // Bug 4635
 {
   validator.load(configFile);
 
-  CommandInterestSigner signer(m_keyChain);
-  auto i = signer.makeCommandInterest("/hello/world/CMD", signingWithSha256());
+  Interest i("/hello/world/CMD");
+  m_keyChain.sign(i, signingWithSha256());
   size_t nValidated = 0, nFailed = 0;
 
   validator.validate(i, [&] (auto&&...) { ++nValidated; }, [&] (auto&&...) { ++nFailed; });
   BOOST_CHECK_EQUAL(nValidated, 1);
   BOOST_CHECK_EQUAL(nFailed, 0);
-
-  validator.validate(i, [&] (auto&&...) { ++nValidated; }, [&] (auto&&...) { ++nFailed; });
-  BOOST_CHECK_EQUAL(nValidated, 1);
-  BOOST_CHECK_EQUAL(nFailed, 1);
-
-  i = signer.makeCommandInterest("/hello/world/CMD", signingWithSha256());
-  validator.validate(i, [&] (auto&&...) { ++nValidated; }, [&] (auto&&...) { ++nFailed; });
-  BOOST_CHECK_EQUAL(nValidated, 2);
-  BOOST_CHECK_EQUAL(nFailed, 1);
 }
 
 

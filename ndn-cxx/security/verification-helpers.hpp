@@ -139,6 +139,11 @@ verifyDigest(const Data& data, DigestAlgorithm algorithm);
 bool
 verifyDigest(const Interest& interest, DigestAlgorithm algorithm);
 
+///////////////////////////////////////////////////////////////////////
+
+bool
+verifyParametersDigest(const Interest& interest);
+
 } // namespace security
 } // namespace ndn
 

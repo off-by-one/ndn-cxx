@@ -1,6 +1,6 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
- * Copyright (c) 2013-2018 Regents of the University of California.
+ * Copyright (c) 2013-2019 Regents of the University of California.
  *
  * This file is part of ndn-cxx library (NDN C++ library with eXperimental eXtensions).
  *
@@ -25,11 +25,9 @@
 namespace ndn {
 namespace security {
 
-ValidatorConfig::ValidatorConfig(std::unique_ptr<v2::CertificateFetcher> fetcher, const Options& options)
-  : v2::Validator(make_unique<v2::ValidationPolicyCommandInterest>(make_unique<v2::ValidationPolicyConfig>(),
-                                                                   options),
-                  std::move(fetcher))
-  , m_policyConfig(static_cast<v2::ValidationPolicyConfig&>(getPolicy().getInnerPolicy()))
+ValidatorConfig::ValidatorConfig(std::unique_ptr<v2::CertificateFetcher> fetcher)
+  : v2::Validator(make_unique<v2::ValidationPolicyConfig>(), std::move(fetcher))
+  , m_policyConfig(static_cast<v2::ValidationPolicyConfig&>(getPolicy()))
 {
 }
 

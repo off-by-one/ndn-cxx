@@ -167,7 +167,11 @@ InterestValidationState::~InterestValidationState()
 void
 InterestValidationState::verifyOriginalPacket(const Certificate& trustedCert)
 {
-  if (verifySignature(m_interest, trustedCert)) {
+  if (!m_interest.getName().get(-1).isParametersSha256Digest()) {
+    this->fail({ValidationError::Code::INVALID_SIGNATURE, "Invalid parameters digest of interest `" +
+                m_interest.getName().toUri() + "`"});
+  }
+  if (verifySignature(m_interest, trustedCert) && verifyParametersDigest(m_interest)) {
     NDN_LOG_TRACE_DEPTH("OK signature for interest `" << m_interest.getName() << "`");
     this->afterSuccess(m_interest);
     BOOST_ASSERT(boost::logic::indeterminate(m_outcome));

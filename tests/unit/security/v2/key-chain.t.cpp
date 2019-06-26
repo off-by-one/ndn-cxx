@@ -347,7 +347,7 @@ BOOST_FIXTURE_TEST_CASE(GeneralSigningInterface, IdentityManagementFixture)
       m_keyChain.sign(interest, signingInfo);
     }
 
-    Signature interestSignature(interest.getName()[-2].blockFromValue(), interest.getName()[-1].blockFromValue());
+    Signature interestSignature = interest.getSignature();
 
     if (signingInfo.getSignerType() == SigningInfo::SIGNER_TYPE_SHA256) {
       BOOST_CHECK_EQUAL(data.getSignature().getType(), tlv::DigestSha256);

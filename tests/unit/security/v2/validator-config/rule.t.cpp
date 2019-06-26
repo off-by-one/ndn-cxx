@@ -49,7 +49,7 @@ public:
     , pktName("/foo/bar")
   {
     if (PktType == tlv::Interest) {
-      pktName = Name("/foo/bar/SigInfo/SigValue");
+      pktName = Name("/foo/bar/Digest");
     }
   }
 

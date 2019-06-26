@@ -40,7 +40,6 @@ Controller::Controller(Face& face, KeyChain& keyChain, security::v2::Validator& 
   : m_face(face)
   , m_keyChain(keyChain)
   , m_validator(validator)
-  , m_signer(keyChain)
 {
 }
 
@@ -59,7 +58,8 @@ Controller::startCommand(const shared_ptr<ControlCommand>& command,
                          const CommandOptions& options)
 {
   Name requestName = command->getRequestName(options.getPrefix(), parameters);
-  Interest interest = m_signer.makeCommandInterest(requestName, options.getSigningInfo());
+  Interest interest(requestName);
+  m_keyChain.sign(interest, options.getSigningInfo());
   interest.setInterestLifetime(options.getTimeout());
 
   m_face.expressInterest(interest,

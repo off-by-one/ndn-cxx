@@ -250,5 +250,20 @@ verifyDigest(const Interest& interest, DigestAlgorithm algorithm)
   }
 }
 
+///////////////////////////////////////////////////////////////////////
+
+bool
+verifyParametersDigest(const Interest& interest)
+{
+  ConstBufferPtr buf = interest.wireEncodeParametersSuffix();
+  const Block& digest = interest.getName().get(-1).wireEncode();
+
+  return verifyDigest(buf->get<uint8_t>(),
+                      buf->size(),
+                      digest.value(),
+                      digest.value_size(),
+                      DigestAlgorithm::SHA256);
+}
+
 } // namespace security
 } // namespace ndn

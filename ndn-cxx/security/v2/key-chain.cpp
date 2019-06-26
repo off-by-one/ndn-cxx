@@ -475,6 +475,8 @@ KeyChain::sign(Interest& interest, const SigningInfo& params)
                         params.getDigestAlgorithm(),
                         tlv::InterestSignatureValue);
   interest.setSignatureValue(sigValue);
+
+  interest.setCanBePrefix(false);
   interest.recomputeParametersDigest();
 }
 

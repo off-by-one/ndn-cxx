@@ -54,7 +54,7 @@ public:
   static Name
   makeSignedInterestName(const Name& name)
   {
-    return Name(name).append("SignatureInfo").append("SignatureValue");
+    return Name(name).append("Digest");
   }
 
   static Name

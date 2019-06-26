@@ -174,7 +174,6 @@ protected:
   Face& m_face;
   KeyChain& m_keyChain;
   security::v2::Validator& m_validator;
-  security::CommandInterestSigner m_signer;
 
 NDN_CXX_PUBLIC_WITH_TESTS_ELSE_PROTECTED:
   std::set<shared_ptr<util::SegmentFetcher>> m_fetchers;
