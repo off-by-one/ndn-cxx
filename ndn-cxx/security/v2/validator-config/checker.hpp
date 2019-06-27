@@ -75,6 +75,12 @@ public:
   static unique_ptr<Checker>
   create(const ConfigSection& configSection, const std::string& configFilename);
 
+  virtual bool
+  interestOnly()
+  {
+    return false;
+  }
+
 private:
   static unique_ptr<Checker>
   createCustomizedChecker(const ConfigSection& configSection, const std::string& configFilename);
@@ -99,8 +105,6 @@ private:
 
   static unique_ptr<Checker>
   createSequenceNumberChecker(const ConfigSection& configSection, const std::string& configFilename);
-
-
 
 protected:
   virtual bool
@@ -156,6 +160,12 @@ class ReplayChecker : public Checker
 {
 public:
   ReplayChecker(size_t maxRecords, time::nanoseconds maxRecordLifetime);
+
+  bool
+  interestOnly() override
+  {
+    return true;
+  }
 
 protected:
   bool

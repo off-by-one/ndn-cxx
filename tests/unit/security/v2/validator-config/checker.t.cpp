@@ -23,6 +23,7 @@
 #include "ndn-cxx/security/command-interest-signer.hpp"
 #include "ndn-cxx/security/v2/validation-policy.hpp"
 #include "ndn-cxx/security/v2/validation-state.hpp"
+#include "ndn-cxx/security/v2/validation-callback.hpp"
 
 #include "tests/boost-test.hpp"
 #include "tests/unit/security/v2/validator-fixture.hpp"
@@ -354,6 +355,168 @@ BOOST_FIXTURE_TEST_CASE_TEMPLATE(Checks, T, Tests, T)
       BOOST_CHECK_EQUAL(bool(interestState->getOutcome()), false);
     }
   }
+}
+
+class ReplayCheckerFixture : public IdentityManagementTimeFixture
+{
+public:
+  ReplayCheckerFixture()
+    : m_pktName("/foo/bar/Digest")
+    , m_klName("/foo/bar/KEY")
+    , m_klOtherName("/foo/other/KEY")
+    , m_interest(m_pktName)
+  {
+    m_klName.append("v=1");
+    m_klOtherName.append("v=1");
+    m_sigInfo.setInfoType(tlv::InterestSignatureInfo);
+  }
+
+  shared_ptr<ndn::security::v2::tests::DummyInterestValidationState>
+  makeFreshValidationState()
+  {
+    return make_shared<ndn::security::v2::tests::DummyInterestValidationState>(m_interest
+        ,[&] (const Interest& i) {}
+        ,[&] (const Interest &i, const security::v2::ValidationError& e) {});
+  }
+
+  bool
+  runChecker(shared_ptr<Checker> checkerPtr, const Name& klName)
+  {
+    auto state = makeFreshValidationState();
+    bool result = checkerPtr->check(tlv::Interest, m_pktName, klName, state);
+    if (result) {
+      state->performAfterSuccess();
+    }
+    return result;
+  }
+
+public:
+  Name m_pktName;
+  Name m_klName;
+  Name m_klOtherName;
+
+  SignatureInfo m_sigInfo;
+  Interest m_interest;
+};
+
+
+BOOST_FIXTURE_TEST_CASE(TestNonceChecker, ReplayCheckerFixture)
+{
+  std::shared_ptr<Checker> checkerPtr = std::move(Checker::create(makeSection(R"CONF(
+          type nonce
+          max-records 1
+          max-lifetime "1 ms"
+        )CONF"), "test-config"));
+  m_sigInfo.setNonce(4);
+  m_interest.setSignature(Signature(m_sigInfo));
+  BOOST_CHECK(runChecker(checkerPtr, m_klName));
+  BOOST_CHECK(!runChecker(checkerPtr, m_klName));
+
+  m_sigInfo.setNonce(5);
+  m_interest.setSignature(Signature(m_sigInfo));
+  BOOST_CHECK(runChecker(checkerPtr, m_klName));
+
+  advanceClocks(10_ms);
+  BOOST_CHECK(runChecker(checkerPtr, m_klName));
+  BOOST_CHECK(runChecker(checkerPtr, m_klOtherName));
+
+  checkerPtr = std::move(Checker::create(makeSection(R"CONF(
+          type nonce
+          max-records 2
+          max-lifetime "1 ms"
+        )CONF"), "test-config"));
+  BOOST_CHECK(runChecker(checkerPtr, m_klName));
+  BOOST_CHECK(runChecker(checkerPtr, m_klOtherName));
+  BOOST_CHECK(!runChecker(checkerPtr, m_klName));
+  BOOST_CHECK(!runChecker(checkerPtr, m_klOtherName));
+
+  advanceClocks(10_ms);
+  BOOST_CHECK(runChecker(checkerPtr, m_klName));
+  BOOST_CHECK(runChecker(checkerPtr, m_klOtherName));
+}
+
+BOOST_FIXTURE_TEST_CASE(TestTimestampChecker, ReplayCheckerFixture)
+{
+  std::shared_ptr<Checker> checkerPtr = std::move(Checker::create(makeSection(R"CONF(
+          type timestamp
+          max-records 1
+          max-lifetime "10 ms"
+          grace-period "1 ms"
+        )CONF"), "test-config"));
+  m_sigInfo.setTimestamp();
+  m_interest.setSignature(Signature(m_sigInfo));
+  advanceClocks(2_ms);
+  BOOST_CHECK(!runChecker(checkerPtr, m_klName));
+
+  m_sigInfo.setTimestamp();
+  m_interest.setSignature(Signature(m_sigInfo));
+  BOOST_CHECK(runChecker(checkerPtr, m_klName));
+
+  BOOST_CHECK(!runChecker(checkerPtr, m_klName));
+
+  advanceClocks(1_ms);
+  m_sigInfo.setTimestamp();
+  m_interest.setSignature(Signature(m_sigInfo));
+
+  BOOST_CHECK(runChecker(checkerPtr, m_klName));
+  BOOST_CHECK(runChecker(checkerPtr, m_klOtherName));
+  BOOST_CHECK(runChecker(checkerPtr, m_klName));
+
+  checkerPtr = std::move(Checker::create(makeSection(R"CONF(
+          type timestamp
+          max-records 2
+          max-lifetime "10 ms"
+          grace-period "100 ms"
+        )CONF"), "test-config"));
+  m_sigInfo.setTimestamp();
+  m_interest.setSignature(Signature(m_sigInfo));
+  BOOST_CHECK(runChecker(checkerPtr, m_klName));
+  BOOST_CHECK(runChecker(checkerPtr, m_klOtherName));
+  BOOST_CHECK(!runChecker(checkerPtr, m_klName));
+  BOOST_CHECK(!runChecker(checkerPtr, m_klOtherName));
+
+  advanceClocks(10_ms);
+  BOOST_CHECK(runChecker(checkerPtr, m_klName));
+  BOOST_CHECK(runChecker(checkerPtr, m_klOtherName));
+}
+
+BOOST_FIXTURE_TEST_CASE(TestSeqNumChecker, ReplayCheckerFixture)
+{
+  std::shared_ptr<Checker> checkerPtr = std::move(Checker::create(makeSection(R"CONF(
+          type seq-num
+          max-records 1
+          max-lifetime "10 ms"
+          min-value 20
+        )CONF"), "test-config"));
+  m_sigInfo.setSequenceNumber(10);
+  m_interest.setSignature(Signature(m_sigInfo));
+  BOOST_CHECK(!runChecker(checkerPtr, m_klName));
+
+  m_sigInfo.setSequenceNumber(20);
+  m_interest.setSignature(Signature(m_sigInfo));
+  BOOST_CHECK(runChecker(checkerPtr, m_klName));
+  BOOST_CHECK(!runChecker(checkerPtr, m_klName));
+
+  advanceClocks(10_ms);
+  BOOST_CHECK(runChecker(checkerPtr, m_klName));
+  BOOST_CHECK(runChecker(checkerPtr, m_klOtherName));
+  BOOST_CHECK(runChecker(checkerPtr, m_klName));
+
+  checkerPtr = std::move(Checker::create(makeSection(R"CONF(
+          type seq-num
+          max-records 2
+          max-lifetime "10 ms"
+        )CONF"), "test-config"));
+  m_sigInfo.setSequenceNumber(0);
+  m_interest.setSignature(Signature(m_sigInfo));
+  BOOST_CHECK(runChecker(checkerPtr, m_klName));
+  BOOST_CHECK(runChecker(checkerPtr, m_klOtherName));
+  BOOST_CHECK(!runChecker(checkerPtr, m_klName));
+  BOOST_CHECK(!runChecker(checkerPtr, m_klOtherName));
+
+  advanceClocks(10_ms);
+  BOOST_CHECK(runChecker(checkerPtr, m_klName));
+  BOOST_CHECK(runChecker(checkerPtr, m_klOtherName));
 }
 
 BOOST_AUTO_TEST_SUITE_END() // TestChecker

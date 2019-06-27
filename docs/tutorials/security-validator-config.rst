@@ -191,12 +191,22 @@ packet is determined by the property **checker**, which defines the conditions t
 valid packet must fulfill.
 
 Same as **filter**, **checker** has a property **type**. We have defined two types of
-checkers:
+key name checkers:
 
 - **customized** is a checker that allows customization of the conditions according to specific
   requirements;
 
-- **hierarchical** is a checker with pre-defined hierarchical trust model.
+- **hierarchical** is a checker with pre-defined hierarchical trust model,
+
+as well as three types of replay checkers:
+
+- **nonce** requires and checks a signature nonce be present and unique
+
+- **timestamp** requires and checks a signature timestamp be present and
+  strictly increasing
+
+- **seq-num** requires and checks a signature sequence number be present and
+  strictly increasing
 
 Customized Checker
 ~~~~~~~~~~~~~~~~~~
@@ -329,6 +339,82 @@ is equivalent to a customized checker:
     }
 
 .. _validator-conf-trust-anchors:
+
+Replay Checkers
+~~~~~~~~~~~~~~~~~~~~
+
+Replay checkers check the time-of-signature metadata in an Interes's signature
+to ensure that a signed interest has not been recieved multiple times. All
+three follow a basic pattern:
+
+::
+
+    checker
+    {
+      type <type>
+      max-records 1000
+      max-lifetime "1 h"
+      <extra options>
+    }
+
+The **max-record** option determines the largest number of records stored in
+the validator, and the **max-lifetime** option determines the longest amount of
+time a record can be stored. Any record beyond the maximum amount or older than
+the maximum lifetime will never be checked against, so these jointly determine
+the security margin of the checker. Time periods can be given in units of
+**ns**, **ms**, **s**, **m**, or **h**, and the maximum number of records
+cannot be negative.
+
+The **timestamp** checker has the additional option **grace-period**.
+
+::
+
+    checker
+    {
+      type timestamp
+      max-records 1000
+      max-lifetime "1 h"
+      grace-period "2 m"
+    }
+
+This option requires that the recieved signature be signed within a certain
+time frame of the current system clock. The presented options are the defaults
+for the timestamp checker.
+
+The **seq-num** checker has the additional option **min-value**.
+
+::
+
+    checker
+    {
+      type seq-num
+      max-records 1000
+      max-lifetime "1 h"
+      min-value 0
+    }
+
+This option requires that the recieved signature's sequence number is never
+below the given value. The presented options are the defaults for the sequence
+number checker. As the sequence number is unsigned, a negative minimum is
+invalid.
+
+The **nonce** checker has no additional options.
+
+::
+
+    checker
+    {
+      type nonce
+      max-records 10000
+      max-lifetime "1 h"
+    }
+
+However, it should be noted that while the sequence number and timestamp
+checkers keep only a single record per key, and update it as new Interests are
+recieved, the nonce checker is forced to have a record per Interest recieved.
+The presented options are the defaults, with the maximum amount of records
+being larger by default than for the other two options.
+
 
 Trust Anchors
 -------------

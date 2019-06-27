@@ -295,12 +295,18 @@ SequenceNumberChecker::checkInfo(const SignatureInfo& info, const Name& klName,
   }
 
   uint64_t seq_num = info.getSequenceNumber();
+  if (seq_num < m_minSequenceNumber) {
+    state->fail({ValidationError::POLICY_ERROR,
+                 "Sequence Number is smaller than minimum for key " + klName.toUri()});
+    return false;
+  }
+
   auto it = m_index.find(klName);
 
   if (it != m_index.end()) {
     if (seq_num <= it->seq_num) {
       state->fail({ValidationError::POLICY_ERROR,
-                   "Sequenec Number is reordered for key " + klName.toUri()});
+                   "Sequence Number is reordered for key " + klName.toUri()});
       return false;
     }
   }
@@ -603,7 +609,7 @@ Checker::createNonceChecker(const ConfigSection& configSection,
   auto propertyIt = configSection.begin();
   propertyIt++;
 
-  size_t maxRecords = 1000;
+  size_t maxRecords = 10000;
   time::nanoseconds maxRecordLifetime = 1_h;
 
   for (; propertyIt != configSection.end() ; propertyIt++) {

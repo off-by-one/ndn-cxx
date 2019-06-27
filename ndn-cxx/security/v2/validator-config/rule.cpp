@@ -149,6 +149,11 @@ Rule::create(const ConfigSection& configSection, const std::string& configFilena
     }
 
     rule->addChecker(Checker::create(propertyIt->second, configFilename));
+
+    if (isForData && rule->m_checkers.back()->interestOnly()) {
+      NDN_THROW(Error("Invalid <rule.checker> type for data rule: " + ruleId));
+    }
+      
     hasCheckers = true;
   }
 

@@ -121,6 +121,8 @@ BOOST_FIXTURE_TEST_CASE_TEMPLATE(Checkers, PktType, PktTypes, RuleFixture<PktTyp
 
   state = make_shared<DummyValidationState>();
   BOOST_CHECK_EQUAL(this->rule.check(PktType::value, this->pktName, "/not/foo/bar", state), false);
+
+  BOOST_CHECK_NO_THROW(this->rule.addChecker(make_unique<NonceChecker>(1000, 1_h)));
 }
 
 BOOST_AUTO_TEST_SUITE(Create)
@@ -150,6 +152,16 @@ BOOST_AUTO_TEST_CASE(Errors)
         sig-type rsa-sha256
       }
       other stuff
+    )CONF";
+  BOOST_CHECK_THROW(Rule::create(makeSection(config), "test-config"), Error);
+
+  config = R"CONF(
+      id rule-id
+      for data
+      checker
+      {
+        type nonce 
+      }
     )CONF";
   BOOST_CHECK_THROW(Rule::create(makeSection(config), "test-config"), Error);
 }

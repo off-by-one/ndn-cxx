@@ -179,6 +179,18 @@ private:
   }
 };
 
+class DummyInterestValidationState : public InterestValidationState
+{
+public:
+  using InterestValidationState::InterestValidationState;
+  using InterestValidationState::performAfterSuccess;
+
+  ~DummyInterestValidationState()
+  {
+    m_outcome = false;
+  }
+};
+
 } // namespace tests
 } // namespace v2
 } // namespace security

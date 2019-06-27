@@ -201,7 +201,7 @@ private:
 /**
  * @brief Validation state for an interest packet
  */
-class InterestValidationState final : public ValidationState
+class InterestValidationState : public ValidationState
 {
 public:
   /**
@@ -220,7 +220,7 @@ public:
    * If neither success callback nor failure callback was called, the destructor will call
    * failure callback with IMPLEMENTATION_ERROR error code.
    */
-  ~InterestValidationState() final;
+  ~InterestValidationState() override;
 
   void
   fail(const ValidationError& error) final;
@@ -234,9 +234,13 @@ public:
 public:
   util::Signal<InterestValidationState, Interest> afterSuccess;
 
+protected:
+  void
+  performAfterSuccess();
+
 private:
   void
-  verifyOriginalPacket(const Certificate& trustedCert) final;
+  verifyOriginalPacket(const Certificate& trustedCert) override;
 
   void
   bypassValidation() final;

@@ -165,6 +165,12 @@ InterestValidationState::~InterestValidationState()
 }
 
 void
+InterestValidationState::performAfterSuccess()
+{
+  this->afterSuccess(m_interest);
+}
+
+void
 InterestValidationState::verifyOriginalPacket(const Certificate& trustedCert)
 {
   if (!m_interest.getName().get(-1).isParametersSha256Digest()) {
