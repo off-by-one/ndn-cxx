@@ -343,8 +343,8 @@ is equivalent to a customized checker:
 Replay Checkers
 ~~~~~~~~~~~~~~~~~~~~
 
-Replay checkers check the time-of-signature metadata in an Interes's signature
-to ensure that a signed interest has not been recieved multiple times. All
+Replay checkers check the time-of-signature metadata in an Interest's signature
+to ensure that a signed Interest has not been recieved multiple times. All
 three follow a basic pattern:
 
 ::
@@ -362,8 +362,8 @@ the validator, and the **max-lifetime** option determines the longest amount of
 time a record can be stored. Any record beyond the maximum amount or older than
 the maximum lifetime will never be checked against, so these jointly determine
 the security margin of the checker. Time periods can be given in units of
-**ns**, **ms**, **s**, **m**, or **h**, and the maximum number of records
-cannot be negative.
+**ns** (nanoseconds), **ms** (milliseconds), **s** (seconds), **m** (minutes),
+or **h** (hours), and the maximum number of records cannot be negative.
 
 The **timestamp** checker has the additional option **grace-period**.
 
