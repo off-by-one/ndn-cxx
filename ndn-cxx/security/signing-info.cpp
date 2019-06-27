@@ -52,6 +52,10 @@ SigningInfo::SigningInfo(SignerType signerType,
   , m_name(signerName)
   , m_digestAlgorithm(DigestAlgorithm::SHA256)
   , m_info(signatureInfo)
+  , m_genSeqNum(false)
+  , m_genTimestamp(false)
+  , m_genNonce(false)
+  , m_minSeqNum(0)
 {
   BOOST_ASSERT(signerType == SIGNER_TYPE_NULL ||
                signerType == SIGNER_TYPE_ID ||
@@ -234,7 +238,12 @@ SigningInfo::operator==(const SigningInfo& rhs) const
   return getSignerType() == rhs.getSignerType() &&
     getSignerName() == rhs.getSignerName() &&
     getDigestAlgorithm() == rhs.getDigestAlgorithm() &&
-    getSignatureInfo() == rhs.getSignatureInfo();
+    getSignatureInfo() == rhs.getSignatureInfo() &&
+    generateNonce() == rhs.generateNonce() &&
+    generateTimestamp() == rhs.generateTimestamp() &&
+    generateSeqNum() == rhs.generateSeqNum() &&
+    getMinSeqNum() == rhs.getMinSeqNum();
+
 }
 
 } // namespace security

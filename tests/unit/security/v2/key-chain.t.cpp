@@ -25,6 +25,7 @@
 
 #include "tests/boost-test.hpp"
 #include "tests/identity-management-fixture.hpp"
+#include "tests/unit/identity-management-time-fixture.hpp"
 #include "tests/unit/test-home-env-saver.hpp"
 
 namespace ndn {
@@ -349,6 +350,9 @@ BOOST_FIXTURE_TEST_CASE(GeneralSigningInterface, IdentityManagementFixture)
 
     Signature interestSignature = interest.getSignature();
 
+    BOOST_CHECK(interestSignature.getSignatureInfo().isInterestSignatureInfo());
+    BOOST_CHECK_EQUAL(interestSignature.getValue().type(), tlv::InterestSignatureValue);
+
     if (signingInfo.getSignerType() == SigningInfo::SIGNER_TYPE_SHA256) {
       BOOST_CHECK_EQUAL(data.getSignature().getType(), tlv::DigestSha256);
       BOOST_CHECK_EQUAL(interestSignature.getType(), tlv::DigestSha256);
@@ -365,6 +369,8 @@ BOOST_FIXTURE_TEST_CASE(GeneralSigningInterface, IdentityManagementFixture)
 
       BOOST_CHECK(verifySignature(data, key));
       BOOST_CHECK(verifySignature(interest, key));
+
+      BOOST_CHECK(verifyParametersDigest(interest));
     }
   }
 }
@@ -433,6 +439,53 @@ BOOST_FIXTURE_TEST_CASE(SelfSignedCertValidity, IdentityManagementFixture)
   BOOST_CHECK(cert.isValid());
   BOOST_CHECK(cert.isValid(time::system_clock::now() + 10 * 365_days));
   BOOST_CHECK_GT(cert.getValidityPeriod().getPeriod().second, time::system_clock::now() + 10 * 365_days);
+}
+
+BOOST_FIXTURE_TEST_CASE(GeneratedFields, IdentityManagementTimeFixture)
+{
+  Identity id = addIdentity("/id");
+  Key key = id.getDefaultKey();
+  Interest i("/i");
+
+  SigningInfo signingInfo(SigningInfo::SIGNER_TYPE_KEY, key.getName());
+
+  signingInfo.setGenerateNonce();
+  m_keyChain.sign(i, signingInfo);
+
+  BOOST_CHECK(i.getSignature().getSignatureInfo().hasNonce());
+  BOOST_CHECK(!i.getSignature().getSignatureInfo().hasTimestamp());
+  BOOST_CHECK(!i.getSignature().getSignatureInfo().hasSequenceNumber());
+
+  uint64_t timeMs = toUnixTimestamp(time::system_clock::now()).count();
+
+  signingInfo.unsetGenerateNonce();
+  signingInfo.setGenerateTimestamp();
+  m_keyChain.sign(i, signingInfo);
+
+  BOOST_CHECK(!i.getSignature().getSignatureInfo().hasNonce());
+  BOOST_CHECK(i.getSignature().getSignatureInfo().hasTimestamp());
+  BOOST_CHECK(!i.getSignature().getSignatureInfo().hasSequenceNumber());
+
+  BOOST_CHECK_EQUAL(i.getSignature().getSignatureInfo().getTimestamp(), timeMs);
+
+  advanceClocks(10_ms);
+  m_keyChain.sign(i, signingInfo);
+  BOOST_CHECK_GT(i.getSignature().getSignatureInfo().getTimestamp(), timeMs);
+
+  signingInfo.unsetGenerateTimestamp();
+  signingInfo.setGenerateSeqNum(5);
+  m_keyChain.sign(i, signingInfo);
+
+  BOOST_CHECK(!i.getSignature().getSignatureInfo().hasNonce());
+  BOOST_CHECK(!i.getSignature().getSignatureInfo().hasTimestamp());
+  BOOST_CHECK(i.getSignature().getSignatureInfo().hasSequenceNumber());
+
+  BOOST_CHECK_GE(i.getSignature().getSignatureInfo().getSequenceNumber(), 5);
+
+  uint64_t seqNum = i.getSignature().getSignatureInfo().getSequenceNumber();
+
+  m_keyChain.sign(i, signingInfo);
+  BOOST_CHECK_GE(i.getSignature().getSignatureInfo().getSequenceNumber(), seqNum);
 }
 
 BOOST_AUTO_TEST_SUITE_END() // TestKeyChain

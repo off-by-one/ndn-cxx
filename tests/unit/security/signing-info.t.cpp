@@ -161,7 +161,10 @@ BOOST_AUTO_TEST_CASE(Chaining)
     .setPibKey(Key())
     .setSha256Signing()
     .setDigestAlgorithm(DigestAlgorithm::SHA256)
-    .setSignatureInfo(SignatureInfo());
+    .setSignatureInfo(SignatureInfo())
+    .setGenerateNonce()
+    .setGenerateTimestamp()
+    .setGenerateSeqNum(5);
 
   BOOST_CHECK_EQUAL(boost::lexical_cast<std::string>(info), "id:/localhost/identity/digest-sha256");
 }
@@ -199,6 +202,26 @@ BOOST_AUTO_TEST_CASE(OperatorEquals)
   SignatureInfo sigInfo2(tlv::SignatureSha256WithRsa);
   info2.setSignatureInfo(sigInfo2);
   BOOST_CHECK_NE(info1, info2);
+
+  // Optional generated fields
+  info1 = SigningInfo("id:/my-id");
+  info2 = SigningInfo("id:/my-id");
+  info1.setGenerateTimestamp();
+  BOOST_CHECK_NE(info1, info2);
+  info2.setGenerateTimestamp();
+  BOOST_CHECK_EQUAL(info1, info2);
+  info1.setGenerateNonce();
+  BOOST_CHECK_NE(info1, info2);
+  info2.setGenerateNonce();
+  BOOST_CHECK_EQUAL(info1, info2);
+  info1.setGenerateSeqNum();
+  BOOST_CHECK_NE(info1, info2);
+  info2.setGenerateSeqNum();
+  BOOST_CHECK_EQUAL(info1, info2);
+  info1.setGenerateSeqNum(20);
+  BOOST_CHECK_NE(info1, info2);
+  info2.setGenerateSeqNum(20);
+  BOOST_CHECK_EQUAL(info1, info2);
 }
 
 BOOST_AUTO_TEST_CASE(OperatorEqualsDifferentTypes)
