@@ -166,6 +166,14 @@ SigningInfo&
 SigningInfo::setSignatureInfo(const SignatureInfo& signatureInfo)
 {
   m_info = signatureInfo;
+
+  if (m_info.isInterestSignatureInfo()) {
+    m_info.unsetNonce();
+    m_info.unsetSequenceNumber();
+    m_info.unsetTimestamp();
+    m_info.setInfoType(tlv::SignatureInfo);
+  }
+
   return *this;
 }
 

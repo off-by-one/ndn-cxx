@@ -31,8 +31,8 @@ ValidatorConfig::ValidatorConfig(std::unique_ptr<v2::CertificateFetcher> fetcher
 {
 }
 
-ValidatorConfig::ValidatorConfig(Face& face, const Options& options)
-  : ValidatorConfig(make_unique<v2::CertificateFetcherFromNetwork>(face), options)
+ValidatorConfig::ValidatorConfig(Face& face)
+  : ValidatorConfig(make_unique<v2::CertificateFetcherFromNetwork>(face))
 {
 }
 

@@ -205,6 +205,9 @@ public:
 
   /**
    * @brief Set a semi-prepared SignatureInfo;
+   *
+   * Generated fields in an InterestSignatureInfo are silently ignored, as they
+   * would be invalid at time of signature
    */
   SigningInfo&
   setSignatureInfo(const SignatureInfo& signatureInfo);

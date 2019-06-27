@@ -103,6 +103,21 @@ BOOST_AUTO_TEST_CASE(CustomSignatureInfo)
 
   SigningInfo info2(SigningInfo::SIGNER_TYPE_NULL, SigningInfo::getEmptyName(), si);
   BOOST_CHECK_EQUAL(info2.getSignatureInfo(), si);
+
+  SignatureInfo interestSi;
+  interestSi.setKeyLocator(Name("ndn:/test/key/locator"));
+  interestSi.setInfoType(tlv::InterestSignatureInfo);
+  interestSi.setTimestamp();
+
+  SigningInfo info3;
+  info3.setSignatureInfo(interestSi);
+
+  BOOST_CHECK_NE(info3.getSignatureInfo(), interestSi);
+
+  interestSi.unsetTimestamp();
+  interestSi.setInfoType(tlv::SignatureInfo);
+
+  BOOST_CHECK_EQUAL(info3.getSignatureInfo(), si);
 }
 
 BOOST_AUTO_TEST_CASE(FromString)
