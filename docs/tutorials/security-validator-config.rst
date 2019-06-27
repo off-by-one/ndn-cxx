@@ -344,8 +344,11 @@ Replay Checkers
 ~~~~~~~~~~~~~~~~~~~~
 
 Replay checkers check the time-of-signature metadata in an Interest's signature
-to ensure that a signed Interest has not been recieved multiple times. All
-three follow a basic pattern:
+to ensure that a signed Interest has not been recieved multiple times. Since
+they require an Interest signature, these checkers cannot be placed in a rule
+for data.
+
+All three follow a basic pattern:
 
 ::
 
